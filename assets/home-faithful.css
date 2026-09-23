@@ -58,3 +58,5 @@ main.wrap{padding-left:0;padding-right:0}
 #home .home-actions{display:flex;flex-wrap:wrap}
 }
 @media(max-width:350px){#home.home-shell{padding-left:9px;padding-right:9px}#home .home-grid{gap:8px}#home .home-card{aspect-ratio:430/510}#home .home-card h3{font-size:15px}#home .home-card p{font-size:12px}}
+
+.home-visit-counter{display:block;margin-left:auto;color:#8fb0d3;font:600 10px/1 Arial,sans-serif;letter-spacing:.2px;white-space:nowrap;opacity:.85}@media(max-width:700px){.home-visit-counter{position:absolute;right:4px;bottom:-13px;font-size:9px}.home-footer{padding-top:12px}}
