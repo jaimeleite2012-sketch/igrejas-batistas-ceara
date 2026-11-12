@@ -2,7 +2,7 @@
 -- Não modifica dados nem estrutura das igrejas existentes.
 create table if not exists public.church_publications (
  id uuid primary key default gen_random_uuid(),
- church_id text not null,
+ church_id text not null references public.churches(id) on delete cascade,
  kind text not null check (kind in ('event','news','report')),
  title text not null check (length(trim(title)) between 3 and 180),
  description text not null default '',
@@ -33,3 +33,6 @@ create policy "Directory admins upload church publication files" on storage.obje
 drop policy if exists "Directory admins delete church publication files" on storage.objects;
 create policy "Directory admins delete church publication files" on storage.objects for delete to authenticated
  using (bucket_id='church-publications' and exists(select 1 from public.directory_admins a where a.user_id=auth.uid()));
+
+grant select on public.church_publications to anon, authenticated;
+grant insert,update,delete on public.church_publications to authenticated;
