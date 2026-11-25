@@ -24,6 +24,44 @@ root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos
 <div id="as-list" class="as-list"></div><div id="as-pagination" class="as-toolbar" hidden><button class="btn" id="as-prev">Anterior</button><span id="as-page"></span><button class="btn" id="as-next">Próxima</button></div>
 <dialog id="as-editor" class="as-dialog"><form id="as-editor-form" class="as-form"><h3 id="as-editor-title">Cadastro</h3>${FIELD.map(([k,l,max])=>`<label>${l}${k==='notes'?`<textarea name="${k}" maxlength="${max}" rows="3"></textarea>`:`<input name="${k}" maxlength="${max}" ${k==='name'?'required':''} type="${k==='email'?'email':k==='phone'?'tel':'text'}">`}</label>`).join('')}<p id="as-save-message" role="status"></p><div class="as-toolbar"><button type="button" class="btn" id="as-cancel">Cancelar</button><button class="btn primary" id="as-save">Salvar cadastro</button></div></form></dialog>
 <dialog id="as-share" class="as-dialog"><h3>Link pessoal do membro</h3><p id="as-share-name"></p><p>Este link permite editar somente esta ficha e vale por 30 dias. Envie apenas ao titular, em conversa privada. Gerar outro link invalida o anterior.</p><label>Link individual<input id="as-share-url" readonly></label><div class="as-toolbar"><button class="btn" id="as-copy">Copiar link</button><a class="btn as-wa" id="as-whatsapp" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a><button class="btn" id="as-share-close">Fechar</button></div><p id="as-share-message" role="status"></p></dialog>`;
+
+const directory=document.createElement('section');
+directory.className='as-panel';
+directory.innerHTML='<h3>Contatos por igreja</h3><p>Toque na igreja e depois no irmão para consultar o contato.</p><div class="as-toolbar"><label class="as-search">Buscar irmão, igreja ou cargo<input id="as-public-search" type="search" placeholder="Nome, igreja ou pastor…"></label><label><input id="as-pastors-only" type="checkbox"> Somente pastores</label></div><p id="as-public-count" role="status"></p><div id="as-public-groups"></div><dialog id="as-contact" class="as-dialog" aria-labelledby="as-contact-title"><div id="as-contact-body"></div><button class="btn" id="as-contact-close">Fechar</button></dialog>';
+root.querySelector('.dash-hero').after(directory);
+let contacts=[];
+const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+const pastor=x=>/\b(pastor|pastora|pr|pra)\b/.test(normalize(x.role_description+' '+x.name));
+function renderDirectory(){
+ const term=normalize(el('public-search').value),only=el('pastors-only').checked;
+ const found=contacts.filter(x=>(!only||pastor(x))&&normalize(x.name+' '+x.church+' '+x.role_description+' '+x.phone).includes(term));
+ el('public-count').textContent=found.length+' de '+contacts.length+' contatos';
+ const groups=new Map();
+ found.forEach(x=>{const label=x.church.trim()||'Igreja não informada',key=normalize(label);if(!groups.has(key))groups.set(key,{label,members:[]});groups.get(key).members.push(x);});
+ el('public-groups').innerHTML=[...groups.values()].sort((a,b)=>(a.label==='Igreja não informada')-(b.label==='Igreja não informada')||a.label.localeCompare(b.label,'pt-BR')).map(g=>'<details class="as-church" '+(term||only?'open':'')+'><summary>'+esc(g.label)+' <span class="tag">'+g.members.length+'</span></summary><div class="as-contact-grid">'+g.members.sort((a,b)=>Number(pastor(b))-Number(pastor(a))||a.name.localeCompare(b.name,'pt-BR')).map(x=>'<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado · #'+x.number)+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span>'+(pastor(x)?'<span class="tag">Pastor(a)</span>':'')+'<span>'+esc(x.phone||'Telefone não informado')+'</span><small>Ver contato →</small></button>').join('')+'</div></details>').join('')||'<p>Nenhum contato encontrado.</p>';
+}
+async function loadDirectory(){
+ try{
+ let all=[];
+ for(let offset=0;;offset+=500){
+ const res=await fetch(BASE+'/rest/v1/assibrece_directory?select=id,number,name,phone,role_description,church&order=number.asc&limit=500&offset='+offset,{headers:{apikey:KEY},cache:'no-store'});
+ if(!res.ok)throw new Error();const batch=await res.json();all.push(...batch);if(batch.length<500)break;
+ }
+ contacts=all;renderDirectory();
+ }catch{el('public-count').textContent='Não foi possível carregar os contatos. Clique em Atualizar para tentar novamente.';}
+}
+el('public-search').oninput=renderDirectory;el('pastors-only').onchange=renderDirectory;
+el('contact-close').onclick=()=>el('contact').close();
+el('public-groups').onclick=e=>{
+ const b=e.target.closest('[data-contact]');if(!b)return;
+ const x=contacts.find(x=>x.id===b.dataset.contact);if(!x)return;
+ let phone=x.phone.replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
+ const valid=/^\d{12,15}$/.test(phone);
+ el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(x.name||'Nome não informado')+'</h3><dl><dt>Igreja</dt><dd>'+esc(x.church||'Não informada')+'</dd><dt>Cargo</dt><dd>'+esc(x.role_description||'Não informado')+'</dd><dt>Telefone</dt><dd>'+esc(x.phone||'Não informado')+'</dd></dl>'+(valid?'<p><a class="btn as-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'">Conversar pelo WhatsApp</a></p>':'<p>Telefone incompleto ou não informado.</p>');
+ el('contact').showModal();
+};
+loadDirectory();
+
 function message(text,error=false){el('message').textContent=text;el('message').classList.toggle('as-error',error);}
 function authHeaders(){const t=session?.access_token||sessionStorage.getItem('church-admin-token');return {apikey:KEY,...(t?{Authorization:'Bearer '+t}:{}),'Content-Type':'application/json'};}
 async function request(path,options={}){
@@ -34,6 +72,7 @@ async function request(path,options={}){
 }
 async function edge(action,extra={}){return (await request('/functions/v1/assibrece-access',{method:'POST',body:JSON.stringify({action,token:personalKey,...extra})})).data;}
 async function boot(){
+ loadDirectory();
  await window.directoryAuthReady;
  try{session=JSON.parse(sessionStorage.getItem('assibrece-auth')||'null');}catch{session=null;}
  user=null;isAdmin=false;el('login').hidden=true;el('request').hidden=true;el('admin').hidden=true;el('pagination').hidden=true;el('list').innerHTML='';
@@ -55,7 +94,7 @@ async function boot(){
   if(isAdmin){el('admin').hidden=false;await Promise.all([loadRows(),loadRequests()]);}
   else{
    rows=(await request('/rest/v1/assibrece_members?select=*&order=number.asc')).data;
-   if(rows.length){renderCards();message('Você está visualizando somente seu cadastro.');}
+   if(rows.length){renderCards();message('Sua ficha para edição está abaixo da lista de contatos.');}
    else{
     el('request').hidden=false;
     const req=(await request('/rest/v1/assibrece_requests?select=status&user_id=eq.'+user.id)).data[0];
@@ -116,7 +155,7 @@ el('editor-form').onsubmit=async e=>{
    if(!result.data?.length)throw new Error('A ficha mudou em outra sessão ou seu acesso expirou. Feche e atualize antes de salvar.');
    if(isAdmin)await loadRows();else{rows=result.data;renderCards();}
   }else{await request('/rest/v1/assibrece_members',{method:'POST',body:JSON.stringify(data)});page=0;await loadRows();}
-  el('editor').close();message('Cadastro salvo no banco online com sucesso.');
+  await loadDirectory();el('editor').close();message('Cadastro salvo no banco online com sucesso.');
  }catch(error){el('save-message').textContent=error.message;}finally{el('save').disabled=false;}
 };
 el('list').onclick=e=>{
