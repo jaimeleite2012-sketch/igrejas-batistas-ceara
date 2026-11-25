@@ -16,7 +16,7 @@ if(hash.has('assibrece_key')){
  history.replaceState(null,'',location.pathname+'?aba=assibrece');
 }
 root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos · Comunhão e cooperação</p></div>
-<div class="as-toolbar"><span id="as-session">Acesso individual e protegido</span><button class="btn" id="as-refresh">Atualizar</button><button class="btn" id="as-logout" hidden>Sair</button></div>
+<div class="as-toolbar"><span id="as-session">Consulta pública · edição protegida</span><button class="btn" id="as-refresh">Atualizar</button><button class="btn" id="as-logout" hidden>Sair</button></div>
 <p id="as-message" class="as-message" role="status" aria-live="polite"></p>
 <div id="as-login" class="as-panel" hidden><h3>Acesse seu cadastro</h3><p>Recebeu um link pessoal pelo WhatsApp? Abra esse link para atualizar sua ficha. Não compartilhe seu link com outras pessoas.</p><details><summary>Entrar pelo e-mail</summary><form id="as-login-form" class="as-form"><label>E-mail de acesso<input name="email" type="email" autocomplete="email" required maxlength="254"></label><button class="btn primary">Receber link por e-mail</button></form><p>No primeiro acesso por e-mail, o administrador precisa vincular sua conta à ficha correta.</p></details><button class="btn" id="as-admin-login">Entrar como administrador</button></div>
 <div id="as-request" class="as-panel" hidden><h3>Solicitar acesso ao meu cadastro</h3><p>Informe seus dados para o administrador localizar sua ficha. Se ainda não houver cadastro, ele poderá criar um.</p><form id="as-request-form" class="as-form"><label>Nome completo<input name="name" required minlength="2" maxlength="200" autocomplete="name"></label><label>Telefone / WhatsApp<input name="phone" required minlength="8" maxlength="40" type="tel" autocomplete="tel"></label><label>Igreja / Congregação<input name="church" maxlength="300"></label><button class="btn primary">Solicitar acesso</button></form><p id="as-request-status"></p></div>
@@ -27,7 +27,7 @@ root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos
 
 const directory=document.createElement('section');
 directory.className='as-panel';
-directory.innerHTML='<h3>Contatos por igreja</h3><p>Toque na igreja e depois no irmão para consultar o contato.</p><div class="as-toolbar"><label class="as-search">Buscar irmão, igreja ou cargo<input id="as-public-search" type="search" placeholder="Nome, igreja ou pastor…"></label><label><input id="as-pastors-only" type="checkbox"> Somente pastores</label></div><p id="as-public-count" role="status"></p><div id="as-public-groups"></div><dialog id="as-contact" class="as-dialog" aria-labelledby="as-contact-title"><div id="as-contact-body"></div><button class="btn" id="as-contact-close">Fechar</button></dialog>';
+directory.innerHTML='<h3>Contatos por igreja</h3><p>Consulta livre para todos, sem login. Toque no nome do irmão para ver o contato e abrir o WhatsApp.</p><div class="as-toolbar"><label class="as-search">Buscar irmão, igreja ou cargo<input id="as-public-search" type="search" placeholder="Nome, igreja ou pastor…"></label><label><input id="as-pastors-only" type="checkbox"> Somente pastores</label></div><p id="as-public-count" role="status"></p><div id="as-public-groups"></div><dialog id="as-contact" class="as-dialog" aria-labelledby="as-contact-title"><div id="as-contact-body"></div><button class="btn" id="as-contact-close">Fechar</button></dialog>';
 root.querySelector('.dash-hero').after(directory);
 let contacts=[];
 const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
@@ -38,7 +38,7 @@ function renderDirectory(){
  el('public-count').textContent=found.length+' de '+contacts.length+' contatos';
  const groups=new Map();
  found.forEach(x=>{const label=x.church.trim()||'Igreja não informada',key=normalize(label);if(!groups.has(key))groups.set(key,{label,members:[]});groups.get(key).members.push(x);});
- el('public-groups').innerHTML=[...groups.values()].sort((a,b)=>(a.label==='Igreja não informada')-(b.label==='Igreja não informada')||a.label.localeCompare(b.label,'pt-BR')).map(g=>'<details class="as-church" '+(term||only?'open':'')+'><summary>'+esc(g.label)+' <span class="tag">'+g.members.length+'</span></summary><div class="as-contact-grid">'+g.members.sort((a,b)=>Number(pastor(b))-Number(pastor(a))||a.name.localeCompare(b.name,'pt-BR')).map(x=>'<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado · #'+x.number)+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span>'+(pastor(x)?'<span class="tag">Pastor(a)</span>':'')+'<span>'+esc(x.phone||'Telefone não informado')+'</span><small>Ver contato →</small></button>').join('')+'</div></details>').join('')||'<p>Nenhum contato encontrado.</p>';
+ el('public-groups').innerHTML=[...groups.values()].sort((a,b)=>(a.label==='Igreja não informada')-(b.label==='Igreja não informada')||a.label.localeCompare(b.label,'pt-BR')).map(g=>'<details class="as-church" open><summary>'+esc(g.label)+' <span class="tag">'+g.members.length+'</span></summary><div class="as-contact-grid">'+g.members.sort((a,b)=>Number(pastor(b))-Number(pastor(a))||a.name.localeCompare(b.name,'pt-BR')).map(x=>'<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado · #'+x.number)+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span>'+(pastor(x)?'<span class="tag">Pastor(a)</span>':'')+'<span>'+esc(x.phone||'Telefone não informado')+'</span><small>Ver contato →</small></button>').join('')+'</div></details>').join('')||'<p>Nenhum contato encontrado.</p>';
 }
 async function loadDirectory(){
  try{
@@ -89,7 +89,7 @@ async function boot(){
    isAdmin=(await request('/rest/v1/directory_admins?select=user_id&user_id=eq.'+encodeURIComponent(user.id))).data.length>0;
   }
   el('logout').hidden=!user;
-  if(!user){el('login').hidden=false;el('session').textContent='Acesso individual e protegido';message('Somente o titular e o administrador podem editar uma ficha.');return;}
+  if(!user){el('login').hidden=false;el('session').textContent='Consulta pública · edição protegida';message('Todos podem consultar os contatos acima. Para editar, use seu acesso individual ou de administrador.');return;}
   el('session').textContent=(isAdmin?'Administrador':'Membro')+' · '+user.email;
   if(isAdmin){el('admin').hidden=false;await Promise.all([loadRows(),loadRequests()]);}
   else{
