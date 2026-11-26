@@ -8,11 +8,18 @@ create table public.assibrece_members (
  church text not null default '' check(length(church)<=300),
  email text not null default '' check(length(email)<=254),
  city_neighborhood text not null default '' check(length(city_neighborhood)<=300),
+ profession text not null default '' check(length(profession)<=500),
+ offers_services boolean not null default false,
+ service_description text not null default '' check(length(service_description)<=1000),
  notes text not null default '' check(length(notes)<=2000),
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now(),
  revision integer not null default 1
 );
+create unique index assibrece_members_unique_normalized_name
+on public.assibrece_members (
+ regexp_replace(lower(translate(trim(name),'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇç','AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc')),'^(pr\.?|pra\.?|pastor(a)?|irmao|irma)\s+','','i')
+) where trim(name)<>'';
 create table public.assibrece_access (
  user_id uuid primary key references auth.users(id) on delete cascade,
  member_id uuid not null unique references public.assibrece_members(id) on delete cascade
@@ -30,13 +37,15 @@ alter table public.assibrece_members enable row level security;
 alter table public.assibrece_access enable row level security;
 alter table public.assibrece_requests enable row level security;
 revoke all on public.assibrece_members, public.assibrece_access, public.assibrece_requests from anon;
-grant select,insert,update on public.assibrece_members, public.assibrece_access, public.assibrece_requests to authenticated;
+grant select,insert,update,delete on public.assibrece_members to authenticated;
+grant select,insert,update on public.assibrece_access, public.assibrece_requests to authenticated;
 grant usage,select on sequence public.assibrece_members_number_seq to authenticated;
 create policy assibrece_access_read on public.assibrece_access for select to authenticated using(user_id=(select auth.uid()) or exists(select 1 from public.directory_admins where user_id=(select auth.uid())));
 create policy assibrece_access_admin on public.assibrece_access for all to authenticated using(exists(select 1 from public.directory_admins where user_id=(select auth.uid()))) with check(exists(select 1 from public.directory_admins where user_id=(select auth.uid())));
 create policy assibrece_member_read on public.assibrece_members for select to authenticated using(exists(select 1 from public.assibrece_access a where a.member_id=id and a.user_id=(select auth.uid())) or exists(select 1 from public.directory_admins where user_id=(select auth.uid())));
 create policy assibrece_member_update on public.assibrece_members for update to authenticated using(exists(select 1 from public.assibrece_access a where a.member_id=id and a.user_id=(select auth.uid())) or exists(select 1 from public.directory_admins where user_id=(select auth.uid()))) with check(exists(select 1 from public.assibrece_access a where a.member_id=id and a.user_id=(select auth.uid())) or exists(select 1 from public.directory_admins where user_id=(select auth.uid())));
 create policy assibrece_member_insert on public.assibrece_members for insert to authenticated with check(exists(select 1 from public.directory_admins where user_id=(select auth.uid())));
+create policy assibrece_member_admin_delete on public.assibrece_members for delete to authenticated using(exists(select 1 from public.directory_admins where user_id=(select auth.uid())));
 create policy assibrece_request_read on public.assibrece_requests for select to authenticated using(user_id=(select auth.uid()) or exists(select 1 from public.directory_admins where user_id=(select auth.uid())));
 create policy assibrece_request_insert on public.assibrece_requests for insert to authenticated with check(user_id=(select auth.uid()) and status='pending' and email=(select auth.jwt()->>'email'));
 create policy assibrece_request_admin_update on public.assibrece_requests for update to authenticated using(exists(select 1 from public.directory_admins where user_id=(select auth.uid()))) with check(exists(select 1 from public.directory_admins where user_id=(select auth.uid())));

@@ -5,7 +5,7 @@ const root=document.getElementById('assibrece');
 const BASE='https://pltpqhboxughkpybixcb.supabase.co';
 const KEY='sb_publishable_CHpRWYjYhDpEDnzHr7c1Aw_a3mgyJKF';
 const APP='https://jaimeleite2012-sketch.github.io/igrejas-batistas-ceara/index.html';
-const FIELD=[['name','Nome completo',200],['phone','Telefone / WhatsApp',40],['role_description','Cargo / Descrição no grupo',300],['church','Igreja / Congregação',300],['email','E-mail',254],['city_neighborhood','Cidade / Bairro',300],['notes','Observações',2000]];
+const FIELD=[['name','Nome completo',200],['phone','Telefone / WhatsApp',40],['role_description','Cargo / Descrição no grupo',300],['church','Igreja / Congregação',300],['email','E-mail',254],['city_neighborhood','Cidade / Bairro',300],['profession','Profissão / Ofício / Área de atuação',500],['service_description','Serviços que está apto a prestar',1000],['notes','Observações',2000]];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const el=id=>document.getElementById('as-'+id);
 let session=null,user=null,isAdmin=false,personalKey=sessionStorage.getItem('assibrece-key')||'',rows=[],page=0,total=0,filter='',editing=null,sequence=0;
@@ -22,7 +22,7 @@ root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos
 <div id="as-request" class="as-panel" hidden><h3>Solicitar acesso ao meu cadastro</h3><p>Informe seus dados para o administrador localizar sua ficha. Se ainda não houver cadastro, ele poderá criar um.</p><form id="as-request-form" class="as-form"><label>Nome completo<input name="name" required minlength="2" maxlength="200" autocomplete="name"></label><label>Telefone / WhatsApp<input name="phone" required minlength="8" maxlength="40" type="tel" autocomplete="tel"></label><label>Igreja / Congregação<input name="church" maxlength="300"></label><button class="btn primary">Solicitar acesso</button></form><p id="as-request-status"></p></div>
 <div id="as-admin" hidden><div class="as-kpis"><article class="kpi"><b id="as-total">—</b><span>Cadastros no resultado</span></article><article class="kpi"><b>2.000+</b><span>Preparado para crescer</span></article><article class="kpi"><b id="as-pending">—</b><span>Solicitações pendentes</span></article></div><div class="as-toolbar"><label class="as-search">Buscar por nome, telefone, igreja ou cidade<input id="as-search" type="search" placeholder="Digite para buscar…"></label><button class="btn primary" id="as-new">Novo cadastro</button></div><details class="as-panel"><summary>Solicitações de acesso por e-mail</summary><div id="as-requests"></div></details></div>
 <div id="as-list" class="as-list"></div><div id="as-pagination" class="as-toolbar" hidden><button class="btn" id="as-prev">Anterior</button><span id="as-page"></span><button class="btn" id="as-next">Próxima</button></div>
-<dialog id="as-editor" class="as-dialog"><form id="as-editor-form" class="as-form"><h3 id="as-editor-title">Cadastro</h3><label>Vincular à igreja do cadastro geral<select id="as-church-link"><option value="">Selecionar igreja</option></select></label>${FIELD.map(([k,l,max])=>`<label>${l}${k==='notes'?`<textarea name="${k}" maxlength="${max}" rows="3"></textarea>`:`<input name="${k}" maxlength="${max}" ${k==='name'?'required':''} type="${k==='email'?'email':k==='phone'?'tel':'text'}">`}</label>`).join('')}<p id="as-save-message" role="status"></p><div class="as-toolbar"><button type="button" class="btn" id="as-cancel">Cancelar</button><button class="btn primary" id="as-save">Salvar cadastro</button></div></form></dialog>
+<dialog id="as-editor" class="as-dialog"><form id="as-editor-form" class="as-form"><h3 id="as-editor-title">Cadastro</h3><label>Vincular à igreja do cadastro geral<select id="as-church-link"><option value="">Selecionar igreja</option></select></label>${FIELD.map(([k,l,max])=>`<label>${l}${k==='notes'||k==='service_description'?`<textarea name="${k}" maxlength="${max}" rows="3"></textarea>`:`<input name="${k}" maxlength="${max}" ${k==='name'?'required':''} type="${k==='email'?'email':k==='phone'?'tel':'text'}">`}</label>`).join('')}<label class="as-check"><input id="as-offers-services" name="offers_services" type="checkbox"> Está apto e disponível para prestar esse serviço quando contratado pelos irmãos</label><p id="as-save-message" role="status"></p><div class="as-toolbar"><button type="button" class="btn" id="as-cancel">Cancelar</button><button class="btn primary" id="as-save">Salvar cadastro</button></div></form></dialog>
 <dialog id="as-share" class="as-dialog"><h3>Link pessoal do membro</h3><p id="as-share-name"></p><p>Este link permite editar somente esta ficha e vale por 30 dias. Envie apenas ao titular, em conversa privada. Gerar outro link invalida o anterior.</p><label>Link individual<input id="as-share-url" readonly></label><div class="as-toolbar"><button class="btn" id="as-copy">Copiar link</button><a class="btn as-wa" id="as-whatsapp" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a><button class="btn" id="as-share-close">Fechar</button></div><p id="as-share-message" role="status"></p></dialog>`;
 
 const directory=document.createElement('section');
@@ -31,6 +31,7 @@ directory.innerHTML='<h3>Contatos por igreja</h3><p>Consulta livre para todos, s
 root.querySelector('#as-message').after(directory);
 let contacts=[];
 const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+const personKey=v=>normalize(v).replace(/^(pr\.?|pra\.?|pastor(?:a)?|irmao|irma)\s+/,'');
 const pastor=x=>/\b(pastor|pastora|pr|pra)\b/.test(normalize(x.role_description+' '+x.name));
 let churchGroups=[],selectedGroup=null;
 const validPhone=v=>{let n=String(v||'').replace(/\D/g,'');return /^(?:\d{10,11}|55\d{10,11})$/.test(n);};
@@ -42,7 +43,8 @@ function groupStatus(g){
  g.members.forEach(x=>{absent+=missingMember(x).length;fields+=4;});
  if(!g.members.length){missing.push('Nenhum irmão vinculado');absent++;fields++;}
  const percent=fields?Math.round((fields-absent)*100/fields):0;
- return {percent,missing,color:absent===0?'green':g.members.length&&percent>=80?'yellow':'red',label:absent===0?'Cadastro completo':g.members.length&&percent>=80?'Poucas pendências':'Mais dados pendentes'};
+ const hasRepresentative=g.members.some(x=>normalize(x.name));
+ return {percent,missing,color:hasRepresentative&&absent===0?'green':hasRepresentative?'yellow':'red',label:hasRepresentative&&absent===0?'Cadastro completo':hasRepresentative?'Cadastro iniciado':'Sem representante cadastrado'};
 }
 function renderDirectory(){
  const term=normalize(el('public-search').value),only=el('pastors-only').checked;
@@ -52,13 +54,13 @@ function renderDirectory(){
  const unassigned=[];
  contacts.forEach(x=>{const linked=x.church_id?churchGroups.find(g=>g.church.id===x.church_id&&normalize(g.label)===normalize(x.church)):null;const matches=names.get(normalize(x.church));if(linked)linked.members.push(x);else if(matches?.length===1)matches[0].members.push(x);else unassigned.push(x);});
  const totals={green:0,yellow:0,red:0};churchGroups.forEach(g=>{g.status=groupStatus(g);totals[g.status.color]++;});
- el('public-count').textContent=base.length+' igrejas · '+contacts.length+' irmãos · '+totals.green+' completas · '+totals.yellow+' com poucas pendências · '+totals.red+' com mais pendências';
- el('public-groups').innerHTML='<div class="as-legend"><span class="as-green">Verde: completo</span><span class="as-yellow">Amarelo: 80% ou mais</span><span class="as-red">Vermelho: menos de 80% ou sem irmãos</span></div><p class="as-note">Verificação: nome, cidade, endereço, pastor e WhatsApp da igreja; nome, igreja, cargo e telefone dos irmãos. E-mail e observações são opcionais. Toque em uma caixa para consultar ou editar.</p><div class="as-heatmap">'+churchGroups.map((g,i)=>({g,i})).filter(({g})=>(!only||g.members.some(pastor))&&normalize(g.label+' '+(g.church.city||'')+' '+g.members.map(x=>x.name+' '+x.role_description+' '+x.phone).join(' ')).includes(term)).map(({g,i})=>'<button class="as-tile as-'+g.status.color+'" data-group="'+i+'"><strong>'+esc(g.label)+'</strong><span>'+esc(g.church.city||'Cidade não informada')+'</span><b>'+g.members.length+' irmãos · '+g.status.percent+'%</b><span>'+g.status.label+'</span></button>').join('')+'</div>';
+ el('public-count').textContent=base.length+' igrejas · '+contacts.length+' irmãos · '+totals.green+' completas · '+totals.yellow+' com cadastro iniciado · '+totals.red+' sem representante';
+ el('public-groups').innerHTML='<div class="as-legend"><span class="as-green">Verde: cadastro completo</span><span class="as-yellow">Amarelo: possui representante; faltam dados</span><span class="as-red">Vermelho: sem representante cadastrado</span></div><p class="as-note">O vermelho é usado somente quando não há nenhum irmão vinculado. A profissão e a disponibilidade para serviços são informações complementares e não reduzem o status da igreja. Toque em uma caixa para consultar ou editar.</p><div class="as-heatmap">'+churchGroups.map((g,i)=>({g,i})).filter(({g})=>(!only||g.members.some(pastor))&&normalize(g.label+' '+(g.church.city||'')+' '+g.members.map(x=>x.name+' '+x.role_description+' '+x.phone+' '+x.profession+' '+x.service_description).join(' ')).includes(term)).map(({g,i})=>'<button class="as-tile as-'+g.status.color+'" data-group="'+i+'"><strong>'+esc(g.label)+'</strong><span>'+esc(g.church.city||'Cidade não informada')+'</span><b>'+g.members.length+' irmãos · '+g.status.percent+'%</b><span>'+g.status.label+'</span></button>').join('')+'</div>';
  if(unassigned.length){const list=unassigned.filter(x=>(!only||pastor(x))&&normalize(x.name+' '+x.church+' '+x.role_description).includes(term));el('public-groups').innerHTML+='<details class="as-church"><summary>Vínculo de igreja a revisar · '+unassigned.length+' irmãos</summary><p>Nomes abreviados ou sem correspondência única precisam ser associados à igreja correta pelo administrador.</p><div class="as-contact-grid">'+list.map(contactCard).join('')+'</div></details>';}
  const field=el('editor-form').elements.church;field.setAttribute('list','as-church-options');
  let options=el('church-options');if(!options){options=document.createElement('datalist');options.id='as-church-options';root.append(options);}const link=el('church-link'),selected=link.value;link.innerHTML='<option value="">Selecionar igreja</option>'+base.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name+' · '+(c.city||'Cidade não informada')+(c.address?' · '+c.address:''))+'</option>').join('');link.value=selected;options.innerHTML=base.map(c=>'<option value="'+esc(c.name)+'"></option>').join('');
 }
-function contactCard(x){return '<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado')+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span><span>'+esc(x.phone||'Telefone não informado')+'</span><small>'+esc(missingMember(x).length?'Falta: '+missingMember(x).join(', '):'Cadastro completo')+'</small></button>';}
+function contactCard(x){return '<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado')+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span><span>'+esc(x.phone||'Telefone não informado')+'</span>'+(x.profession?'<span>Profissão: '+esc(x.profession)+'</span>':'')+(x.offers_services?'<small>Disponível para prestar serviços</small>':'<small>'+esc(missingMember(x).length?'Falta: '+missingMember(x).join(', '):'Cadastro completo')+'</small>')+'</button>';}
 function openGroup(i){
  selectedGroup=churchGroups[i];if(!selectedGroup)return;const g=selectedGroup;
  el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(g.label)+'</h3><p>'+g.status.percent+'% preenchido · '+g.status.label+'</p>'+(g.status.missing.length?'<p>Dados da igreja a completar: '+esc(g.status.missing.join(', '))+'</p>':'')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-church-edit="'+esc(g.church.id)+'">Editar igreja</button><button class="btn" data-member-new="1">Cadastrar irmão nesta igreja</button></div>':'<button class="btn" data-admin-access="1">Entrar como administrador para editar</button>')+'<div class="as-contact-grid">'+g.members.map(contactCard).join('')+'</div>'+(g.members.length?'':'<p>Ainda não há irmãos vinculados a esta igreja.</p>');
@@ -74,7 +76,7 @@ async function loadDirectory(){
  try{
  let all=[];
  for(let offset=0;;offset+=500){
- const res=await fetch(BASE+'/rest/v1/assibrece_directory?select=id,number,name,phone,role_description,church,church_id&order=number.asc&limit=500&offset='+offset,{headers:{apikey:KEY},cache:'no-store'});
+ const res=await fetch(BASE+'/rest/v1/assibrece_directory?select=id,number,name,phone,role_description,church,church_id,profession,offers_services,service_description&order=number.asc&limit=500&offset='+offset,{headers:{apikey:KEY},cache:'no-store'});
  if(!res.ok)throw new Error();const batch=await res.json();all.push(...batch);if(batch.length<500)break;
  }
  contacts=all;renderDirectory();
@@ -89,10 +91,11 @@ function directoryClick(e){
  if(b.dataset.churchEdit&&isAdmin){el('contact').close();return openEdit(b.dataset.churchEdit);}
  if(b.dataset.memberNew&&isAdmin){el('contact').close();edit(null);el('editor-form').elements.church.value=selectedGroup.label;el('church-link').value=selectedGroup.church.id;return;}
  if(b.dataset.contactEdit)return guarded(b,()=>editContact(b.dataset.contactEdit));
+ if(b.dataset.contactDelete&&isAdmin)return guarded(b,()=>deleteMember(b.dataset.contactDelete));
  if(!b.dataset.contact)return;
  const x=contacts.find(x=>x.id===b.dataset.contact);if(!x)return;
  let phone=String(x.phone||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
- el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(x.name||'Nome não informado')+'</h3><dl><dt>Igreja</dt><dd>'+esc(x.church||'Não informada')+'</dd><dt>Cargo</dt><dd>'+esc(x.role_description||'Não informado')+'</dd><dt>Telefone</dt><dd>'+esc(x.phone||'Não informado')+'</dd></dl>'+(validPhone(x.phone)?'<p><a class="btn as-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'">Conversar pelo WhatsApp</a></p>':'<p>Telefone incompleto ou não informado.</p>')+(isAdmin?'<button class="btn primary" data-contact-edit="'+esc(x.id)+'">Editar cadastro</button>':'<button class="btn" data-admin-access="1">Entrar como administrador para editar</button>');
+ el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(x.name||'Nome não informado')+'</h3><dl><dt>Igreja</dt><dd>'+esc(x.church||'Não informada')+'</dd><dt>Cargo</dt><dd>'+esc(x.role_description||'Não informado')+'</dd><dt>Telefone</dt><dd>'+esc(x.phone||'Não informado')+'</dd><dt>Profissão</dt><dd>'+esc(x.profession||'Não informada')+'</dd><dt>Disponível para serviços</dt><dd>'+(x.offers_services?'Sim':'Não informado')+'</dd>'+(x.service_description?'<dt>Serviços</dt><dd>'+esc(x.service_description)+'</dd>':'')+'</dl>'+(validPhone(x.phone)?'<p><a class="btn as-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'">Conversar pelo WhatsApp</a></p>':'<p>Telefone incompleto ou não informado.</p>')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-contact-edit="'+esc(x.id)+'">Editar cadastro</button><button class="btn" data-contact-delete="'+esc(x.id)+'">Excluir duplicata</button></div>':'<button class="btn" data-admin-access="1">Entrar como administrador para editar</button>');
  if(!el('contact').open)el('contact').showModal();
 }
 el('public-groups').onclick=directoryClick;el('contact-body').onclick=directoryClick;
@@ -155,7 +158,7 @@ async function loadRows(){
  message('Dados online · 25 cadastros por página.');
 }
 function renderCards(){
- el('list').innerHTML=rows.length?rows.map(x=>`<article class="as-panel"><div class="as-card-head"><span class="tag">Cadastro ${esc(x.number)}</span><h3>${esc(x.name||'Nome a completar')}</h3></div><dl>${FIELD.filter(([k])=>k!=='name').map(([k,l])=>`<div><dt>${l}</dt><dd>${esc(x[k]||'Não informado')}</dd></div>`).join('')}</dl><div class="as-toolbar"><button class="btn primary" data-edit="${esc(x.id)}">${isAdmin?'Editar cadastro':'Atualizar meus dados'}</button>${isAdmin?`<button class="btn as-wa" data-link="${esc(x.id)}">Link pessoal / WhatsApp</button><button class="btn" data-revoke="${esc(x.id)}">Revogar link</button>`:''}</div><p class="as-note">Última atualização: ${esc(new Date(x.updated_at).toLocaleString('pt-BR'))}</p></article>`).join(''):'<p class="as-panel">Nenhum cadastro encontrado.</p>';
+ el('list').innerHTML=rows.length?rows.map(x=>`<article class="as-panel"><div class="as-card-head"><span class="tag">Cadastro ${esc(x.number)}</span><h3>${esc(x.name||'Nome a completar')}</h3></div><dl>${FIELD.filter(([k])=>k!=='name').map(([k,l])=>`<div><dt>${l}</dt><dd>${esc(x[k]||'Não informado')}</dd></div>`).join('')}<div><dt>Disponível para prestar serviços</dt><dd>${x.offers_services?'Sim':'Não'}</dd></div></dl><div class="as-toolbar"><button class="btn primary" data-edit="${esc(x.id)}">${isAdmin?'Editar cadastro':'Atualizar meus dados'}</button>${isAdmin?`<button class="btn as-wa" data-link="${esc(x.id)}">Link pessoal / WhatsApp</button><button class="btn" data-revoke="${esc(x.id)}">Revogar link</button><button class="btn" data-delete="${esc(x.id)}">Excluir duplicata</button>`:''}</div><p class="as-note">Última atualização: ${esc(new Date(x.updated_at).toLocaleString('pt-BR'))}</p></article>`).join(''):'<p class="as-panel">Nenhum cadastro encontrado.</p>';
 }
 async function allMembers(){let a=[];for(let offset=0;;offset+=500){const batch=(await request('/rest/v1/assibrece_members?select=id,number,name,phone&order=number.asc&limit=500&offset='+offset)).data;a.push(...batch);if(batch.length<500)return a;}}
 async function loadRequests(){
@@ -170,7 +173,19 @@ function edit(id){
  editing=id?rows.find(x=>x.id===id):null;
  el('editor-title').textContent=editing?'Cadastro #'+editing.number:'Novo cadastro';
  FIELD.forEach(([k])=>el('editor-form').elements[k].value=editing?.[k]||'');
+ el('offers-services').checked=!!editing?.offers_services;
  el('church-link').value=editing?.church_id||'';el('save-message').textContent='';el('editor').showModal();
+}
+async function deleteMember(id){
+ const member=rows.find(x=>x.id===id)||contacts.find(x=>x.id===id);
+ if(!member)throw new Error('Cadastro não encontrado. Atualize a página e tente novamente.');
+ const summary=(member.name||'Nome não informado')+'\n'+(member.church||'Igreja não informada')+'\n'+(member.phone||'Telefone não informado');
+ if(!confirm('Excluir definitivamente esta ficha por ser duplicada?\n\n'+summary+'\n\nEsta ação não pode ser desfeita.'))return;
+ if(!confirm('Confirma a exclusão definitiva de '+(member.name||'esta ficha')+'?'))return;
+ await request('/rest/v1/assibrece_members?id=eq.'+encodeURIComponent(id),{method:'DELETE'});
+ if(el('contact').open)el('contact').close();
+ await Promise.all([loadRows(),loadDirectory()]);
+ message('Ficha duplicada excluída com sucesso.');
 }
 async function guarded(button,fn){if(button)button.disabled=true;try{await fn();}catch(e){message(e.message,true);}finally{if(button)button.disabled=false;}}
 el('login-form').onsubmit=e=>{e.preventDefault();guarded(e.submitter,async()=>{
@@ -187,7 +202,9 @@ el('editor-form').onsubmit=async e=>{
  e.preventDefault();el('save').disabled=true;el('save-message').textContent='Salvando…';
  try{
   const data=Object.fromEntries(FIELD.map(([k])=>[k,e.target.elements[k].value.trim()]));
+  data.offers_services=el('offers-services').checked;
   if(!data.name)throw new Error('Informe o nome completo.');
+  if(!editing){const same=contacts.find(x=>personKey(x.name)===personKey(data.name));if(same)throw new Error('Já existe um cadastro com este nome: '+same.name+'. Abra a ficha existente para editar ou excluir a duplicata.');}
   const selected=churchGroups.find(g=>g.church.id===el('church-link').value&&normalize(g.label)===normalize(data.church));const matches=churchGroups.filter(g=>normalize(g.label)===normalize(data.church));data.church_id=selected?.church.id||(matches.length===1?matches[0].church.id:null);
   if(matches.length>1&&!data.church_id)throw new Error('Há igrejas com o mesmo nome. Selecione a igreja e a cidade no campo de vínculo.');
   if(personalKey){const saved=await edge('update',{data,revision:editing.revision});rows=[saved.member];renderCards();}
@@ -202,6 +219,7 @@ el('editor-form').onsubmit=async e=>{
 el('list').onclick=e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.edit)return edit(b.dataset.edit);
+ if(b.dataset.delete)return guarded(b,()=>deleteMember(b.dataset.delete));
  if(b.dataset.revoke){if(!confirm('Invalidar o link pessoal desta ficha? O membro precisará de um novo link.'))return;return guarded(b,async()=>{await edge('revoke_link',{member_id:b.dataset.revoke});message('Link pessoal revogado.');});}
  if(b.dataset.link)guarded(b,async()=>{
   if(!confirm('Gerar um link pessoal válido por 30 dias? Um link anterior desta ficha deixará de funcionar.'))return;
