@@ -8,7 +8,7 @@ const APP='https://jaimeleite2012-sketch.github.io/igrejas-batistas-ceara/index.
 const FIELD=[['name','Nome completo',200],['phone','Telefone / WhatsApp',40],['role_description','Cargo / Descrição no grupo',300],['church','Igreja / Congregação',300],['email','E-mail',254],['city_neighborhood','Cidade / Bairro',300],['profession','Profissão / Ofício / Área de atuação',500],['service_description','Serviços que está apto a prestar',1000],['notes','Observações',2000]];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const el=id=>document.getElementById('as-'+id);
-let session=null,user=null,isAdmin=false,personalKey=sessionStorage.getItem('assibrece-key')||'',rows=[],page=0,total=0,filter='',editing=null,sequence=0;
+let session=null,user=null,isAdmin=false,personalKey=sessionStorage.getItem('assibrece-key')||'',rows=[],page=0,total=0,filter='',editing=null,sequence=0,pendingSmsPhone='';
 if(!localStorage.getItem('assibrece-auth')&&sessionStorage.getItem('assibrece-auth'))localStorage.setItem('assibrece-auth',sessionStorage.getItem('assibrece-auth'));
 try{session=JSON.parse(localStorage.getItem('assibrece-auth')||'null');}catch{}
 const hash=new URLSearchParams(location.hash.slice(1));
@@ -19,7 +19,7 @@ if(hash.has('assibrece_key')){
 root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos · Comunhão e cooperação</p></div>
 <div class="as-toolbar"><button class="btn primary" id="as-manage">Entrar como administrador</button><span id="as-session">Consulta pública · edição protegida</span><button class="btn" id="as-refresh">Atualizar</button><button class="btn" id="as-logout" hidden>Sair</button></div>
 <p id="as-message" class="as-message" role="status" aria-live="polite"></p>
-<div id="as-login" class="as-panel" hidden><h3>Acesse e atualize seu cadastro</h3><p>Cada irmão pode editar somente a própria ficha. Entre com seu e-mail ou use o link pessoal recebido pelo WhatsApp.</p><details id="as-email-access"><summary>Entrar pelo e-mail para editar meus dados</summary><form id="as-login-form" class="as-form"><label>E-mail de acesso<input name="email" type="email" autocomplete="email" required maxlength="254"></label><button class="btn primary">Receber link por e-mail</button></form><p>No primeiro acesso por e-mail, o administrador precisa vincular sua conta à ficha correta.</p><p><b>Depois de entrar, você continuará conectado neste aparelho até clicar em Sair.</b></p></details><button class="btn" id="as-admin-login">Entrar como administrador</button></div>
+<div id="as-login" class="as-panel" hidden><h3>Acesse e atualize seu cadastro</h3><p>Cada irmão pode editar somente a própria ficha. Use o celular já cadastrado, seu e-mail ou o link pessoal recebido pelo WhatsApp.</p><details id="as-sms-access"><summary>Receber código por SMS no celular</summary><form id="as-sms-form" class="as-form"><label>Celular cadastrado com DDD<input name="phone" type="tel" inputmode="tel" autocomplete="tel" required minlength="10" maxlength="20" placeholder="(85) 99999-9999"></label><button class="btn primary">Receber código por SMS</button></form><form id="as-sms-code-form" class="as-form" hidden><p id="as-sms-sent"></p><label>Código de 6 dígitos<input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label><button class="btn primary">Confirmar código e entrar</button><button class="btn" id="as-sms-change" type="button">Usar outro celular</button></form><p id="as-sms-status" class="as-note" role="status"></p><p><b>Depois de entrar, você continuará conectado neste aparelho até clicar em Sair.</b></p></details><details id="as-email-access"><summary>Entrar pelo e-mail para editar meus dados</summary><form id="as-login-form" class="as-form"><label>E-mail de acesso<input name="email" type="email" autocomplete="email" required maxlength="254"></label><button class="btn primary">Receber link por e-mail</button></form><p>No primeiro acesso por e-mail, o administrador precisa vincular sua conta à ficha correta.</p></details><div class="as-toolbar"><button class="btn" id="as-admin-login">Administrador: entrar por e-mail</button><button class="btn" id="as-admin-sms">Administrador: receber código por SMS</button></div></div>
 <div id="as-request" class="as-panel" hidden><h3>Solicitar acesso ao meu cadastro</h3><p>Informe seus dados para o administrador localizar sua ficha. Se ainda não houver cadastro, ele poderá criar um.</p><form id="as-request-form" class="as-form"><label>Nome completo<input name="name" required minlength="2" maxlength="200" autocomplete="name"></label><label>Telefone / WhatsApp<input name="phone" required minlength="8" maxlength="40" type="tel" autocomplete="tel"></label><label>Igreja / Congregação<input name="church" maxlength="300"></label><button class="btn primary">Solicitar acesso</button></form><p id="as-request-status"></p></div>
 <div id="as-admin" hidden><div class="as-kpis"><article class="kpi"><b id="as-total">—</b><span>Cadastros no resultado</span></article><article class="kpi"><b>2.000+</b><span>Preparado para crescer</span></article><article class="kpi"><b id="as-pending">—</b><span>Solicitações pendentes</span></article></div><div class="as-toolbar"><label class="as-search">Buscar por nome, telefone, igreja ou cidade<input id="as-search" type="search" placeholder="Digite para buscar…"></label><button class="btn primary" id="as-new">Novo cadastro</button></div><details class="as-panel"><summary>Solicitações de acesso por e-mail</summary><div id="as-requests"></div></details></div>
 <div id="as-list" class="as-list"></div><div id="as-pagination" class="as-toolbar" hidden><button class="btn" id="as-prev">Anterior</button><span id="as-page"></span><button class="btn" id="as-next">Próxima</button></div>
@@ -70,6 +70,7 @@ function groupStatus(g){
 }
 
 const phoneDigits=v=>String(v||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');
+const phoneE164=v=>{let n=String(v||'').replace(/\D/g,'');if(/^55\d{10,11}$/.test(n))return '+'+n;if(/^\d{10,11}$/.test(n))return '+55'+n;return '';};
 function marketFor(x){
  const key=personKey(x.name),phone=phoneDigits(x.phone);
  return marketListings.filter(item=>personKey(item.owner_name)===key||(phone&&phoneDigits(item.whatsapp)===phone));
@@ -254,8 +255,8 @@ function startSelfEdit(id){
  if(user&&!isAdmin&&rows.length){message('Sua conta já está vinculada a outra ficha. Entre em contato com o administrador para corrigir o vínculo.',true);el('contact').close();return;}
  sessionStorage.setItem('assibrece-claim',id);el('contact').close();
  if(user&&!isAdmin){prefillClaim();el('request').hidden=false;el('request-form').hidden=false;el('request').scrollIntoView({behavior:'smooth'});message('Confirme os dados e solicite o vínculo. Após a aprovação única do administrador, você poderá editar sua ficha quando precisar.');return;}
- el('login').hidden=false;const details=el('email-access');if(details)details.open=true;el('login').scrollIntoView({behavior:'smooth'});
- message('Para editar com segurança, entre pelo seu e-mail. No primeiro acesso, o administrador confirmará que esta ficha é sua.');
+ el('login').hidden=false;const details=el('sms-access');if(details)details.open=true;el('login').scrollIntoView({behavior:'smooth'});
+ message('Para editar com segurança, receba o código no celular desta ficha ou entre pelo seu e-mail.');
 }
 function directoryClick(e){
  const b=e.target.closest('button');if(!b)return;
@@ -274,7 +275,7 @@ function directoryClick(e){
  if(!el('contact').open)el('contact').showModal();
 }
 el('public-groups').onclick=directoryClick;el('contact-body').onclick=directoryClick;
-el('manage').onclick=()=>{if(isAdmin){el('admin').scrollIntoView({behavior:'smooth'});el('search').focus();}else document.getElementById('adminLogin').click();};
+el('manage').onclick=()=>{if(isAdmin){el('admin').scrollIntoView({behavior:'smooth'});el('search').focus();}else{el('login').hidden=false;el('sms-access').open=true;el('login').scrollIntoView({behavior:'smooth'});message('Administrador: entre com o código SMS do seu celular cadastrado ou use o acesso por e-mail.');}};
 window.addEventListener('directory-updated',renderDirectory);
 loadDirectory();
 
@@ -283,7 +284,7 @@ function authHeaders(){const t=session?.access_token||sessionStorage.getItem('ch
 async function request(path,options={}){
  const res=await fetch(BASE+path,{...options,headers:{...authHeaders(),...options.headers},cache:'no-store'});
  const data=await res.json().catch(()=>null);
- if(!res.ok)throw new Error(res.status===401?'Acesso expirado. Entre novamente.':res.status===409?'Esta solicitação ou vínculo já existe. Atualize os dados.':data?.error_description||data?.error||'Não foi possível concluir. Verifique sua conexão e tente novamente.');
+ if(!res.ok)throw new Error(res.status===401?'Acesso expirado. Entre novamente.':res.status===409?'Esta solicitação ou vínculo já existe. Atualize os dados.':data?.error_description||data?.msg||data?.message||data?.error||'Não foi possível concluir. Verifique sua conexão e tente novamente.');
  return {data,res};
 }
 async function edge(action,extra={}){return (await request('/functions/v1/assibrece-access',{method:'POST',body:JSON.stringify({action,token:personalKey,...extra})})).data;}
@@ -306,7 +307,7 @@ async function boot(){
   }
   el('logout').hidden=!user;
   if(!user){el('login').hidden=false;el('session').textContent='Consulta pública · edição protegida';message('Todos podem consultar os contatos acima. Para editar, use seu acesso individual ou de administrador.');return;}
-  el('session').textContent=(isAdmin?'Administrador':'Membro')+' · '+user.email;
+  el('session').textContent=(isAdmin?'Administrador':'Membro')+' · '+(user.email||user.phone||'conta confirmada');
   if(isAdmin){personalKey='';sessionStorage.removeItem('assibrece-key');adminToken=session?.access_token||sessionStorage.getItem('church-admin-token');sessionStorage.setItem('church-admin-token',adminToken);adminUI();el('manage').textContent='Gerenciar cadastros';renderDirectory();el('admin').hidden=false;await Promise.all([loadRows(),loadRequests()]);}
   else{
    rows=(await request('/rest/v1/assibrece_members?select=*&order=number.asc')).data;
@@ -424,6 +425,46 @@ el('login-form').onsubmit=e=>{e.preventDefault();guarded(e.submitter,async()=>{
  message('Link solicitado. Confira o e-mail e a pasta de spam. Se não chegar, peça seu link pessoal pelo WhatsApp ao administrador.');
 });};
 el('admin-login').onclick=()=>document.getElementById('adminLogin').click();
+el('admin-sms').onclick=()=>{el('sms-access').open=true;el('sms-form').elements.phone.focus();message('Informe o celular cadastrado do administrador para receber o código.');};
+el('sms-form').onsubmit=e=>{e.preventDefault();guarded(e.submitter,async()=>{
+ const phone=phoneE164(new FormData(e.target).get('phone'));
+ if(!phone)throw new Error('Informe um celular brasileiro válido, com DDD.');
+ const matches=contacts.filter(x=>phoneE164(x.phone)===phone);
+ if(!matches.length)throw new Error('Este celular ainda não está cadastrado em nenhuma ficha da ASSIBRECE.');
+ if(matches.length>1)throw new Error('Este celular aparece em mais de uma ficha. O administrador precisa corrigir a duplicidade antes do acesso.');
+ el('sms-status').textContent='Enviando o código…';
+ try{
+  await request('/auth/v1/otp',{method:'POST',body:JSON.stringify({phone,create_user:true,channel:'sms'})});
+ }catch(error){
+  if(/provider|sms.*disabled|phone.*disabled|unsupported/i.test(error.message))throw new Error('O envio por SMS está preparado no app, mas o provedor de mensagens ainda precisa ser ativado no servidor.');
+  throw error;
+ }
+ pendingSmsPhone=phone;
+ el('sms-form').hidden=true;el('sms-code-form').hidden=false;
+ el('sms-sent').textContent='Código enviado para o celular terminado em '+phone.slice(-4)+'.';
+ el('sms-status').textContent='Digite o código de 6 dígitos recebido por SMS.';
+ el('sms-code-form').elements.code.focus();
+});};
+el('sms-code-form').onsubmit=e=>{e.preventDefault();guarded(e.submitter,async()=>{
+ const code=String(new FormData(e.target).get('code')||'').replace(/\D/g,'');
+ if(!pendingSmsPhone)throw new Error('Solicite um novo código por SMS.');
+ if(!/^\d{6}$/.test(code))throw new Error('Digite os 6 números do código recebido.');
+ el('sms-status').textContent='Confirmando o celular e localizando sua ficha…';
+ const {data}=await request('/auth/v1/verify',{method:'POST',body:JSON.stringify({type:'sms',phone:pendingSmsPhone,token:code})});
+ session={...data,expires_at:Date.now()/1000+Number(data.expires_in||3600)};
+ localStorage.setItem('assibrece-auth',JSON.stringify(session));
+ try{
+  await request('/rest/v1/rpc/assibrece_claim_verified_phone',{method:'POST',body:'{}'});
+ }catch(error){
+  await request('/auth/v1/logout',{method:'POST'}).catch(()=>{});
+  localStorage.removeItem('assibrece-auth');session=null;
+  throw error;
+ }
+ pendingSmsPhone='';el('sms-code-form').reset();el('sms-form').reset();
+ el('sms-code-form').hidden=true;el('sms-form').hidden=false;
+ await boot();message(isAdmin?'Acesso de administrador confirmado por SMS.':'Celular confirmado. Você pode atualizar somente a sua própria ficha.');
+});};
+el('sms-change').onclick=()=>{pendingSmsPhone='';el('sms-code-form').hidden=true;el('sms-form').hidden=false;el('sms-status').textContent='';el('sms-form').elements.phone.focus();};
 el('request-form').onsubmit=e=>{e.preventDefault();guarded(e.submitter,async()=>{
  const data=Object.fromEntries(new FormData(e.target));data.email=user.email;data.user_id=user.id;data.requested_member_id=sessionStorage.getItem('assibrece-claim')||null;
  await request('/rest/v1/assibrece_requests',{method:'POST',body:JSON.stringify(data)});await boot();
