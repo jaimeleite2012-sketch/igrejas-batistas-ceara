@@ -30,9 +30,11 @@ create table public.assibrece_requests (
  phone text not null check(length(phone) between 8 and 40),
  church text not null default '' check(length(church)<=300),
  email text not null check(length(email)<=254),
+ requested_member_id uuid references public.assibrece_members(id) on delete set null,
  status text not null default 'pending' check(status in ('pending','approved','rejected')),
  created_at timestamptz not null default now()
 );
+create index assibrece_requests_requested_member_idx on public.assibrece_requests(requested_member_id);
 alter table public.assibrece_members enable row level security;
 alter table public.assibrece_access enable row level security;
 alter table public.assibrece_requests enable row level security;

@@ -4,7 +4,7 @@
 const root=document.getElementById('assibrece');
 const BASE='https://pltpqhboxughkpybixcb.supabase.co';
 const KEY='sb_publishable_CHpRWYjYhDpEDnzHr7c1Aw_a3mgyJKF';
-const APP='https://jaimeleite2012-sketch.github.io/igrejas-batistas-ceara/index.html';
+const APP='https://jaimeleite2012-sketch.github.io/igrejas-batistas-ceara/index.html?aba=assibrece';
 const FIELD=[['name','Nome completo',200],['phone','Telefone / WhatsApp',40],['role_description','Cargo / Descrição no grupo',300],['church','Igreja / Congregação',300],['email','E-mail',254],['city_neighborhood','Cidade / Bairro',300],['profession','Profissão / Ofício / Área de atuação',500],['service_description','Serviços que está apto a prestar',1000],['notes','Observações',2000]];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const el=id=>document.getElementById('as-'+id);
@@ -18,7 +18,7 @@ if(hash.has('assibrece_key')){
 root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos · Comunhão e cooperação</p></div>
 <div class="as-toolbar"><button class="btn primary" id="as-manage">Entrar como administrador</button><span id="as-session">Consulta pública · edição protegida</span><button class="btn" id="as-refresh">Atualizar</button><button class="btn" id="as-logout" hidden>Sair</button></div>
 <p id="as-message" class="as-message" role="status" aria-live="polite"></p>
-<div id="as-login" class="as-panel" hidden><h3>Acesse seu cadastro</h3><p>Recebeu um link pessoal pelo WhatsApp? Abra esse link para atualizar sua ficha. Não compartilhe seu link com outras pessoas.</p><details><summary>Entrar pelo e-mail</summary><form id="as-login-form" class="as-form"><label>E-mail de acesso<input name="email" type="email" autocomplete="email" required maxlength="254"></label><button class="btn primary">Receber link por e-mail</button></form><p>No primeiro acesso por e-mail, o administrador precisa vincular sua conta à ficha correta.</p></details><button class="btn" id="as-admin-login">Entrar como administrador</button></div>
+<div id="as-login" class="as-panel" hidden><h3>Acesse e atualize seu cadastro</h3><p>Cada irmão pode editar somente a própria ficha. Entre com seu e-mail ou use o link pessoal recebido pelo WhatsApp.</p><details id="as-email-access"><summary>Entrar pelo e-mail para editar meus dados</summary><form id="as-login-form" class="as-form"><label>E-mail de acesso<input name="email" type="email" autocomplete="email" required maxlength="254"></label><button class="btn primary">Receber link por e-mail</button></form><p>No primeiro acesso por e-mail, o administrador precisa vincular sua conta à ficha correta.</p></details><button class="btn" id="as-admin-login">Entrar como administrador</button></div>
 <div id="as-request" class="as-panel" hidden><h3>Solicitar acesso ao meu cadastro</h3><p>Informe seus dados para o administrador localizar sua ficha. Se ainda não houver cadastro, ele poderá criar um.</p><form id="as-request-form" class="as-form"><label>Nome completo<input name="name" required minlength="2" maxlength="200" autocomplete="name"></label><label>Telefone / WhatsApp<input name="phone" required minlength="8" maxlength="40" type="tel" autocomplete="tel"></label><label>Igreja / Congregação<input name="church" maxlength="300"></label><button class="btn primary">Solicitar acesso</button></form><p id="as-request-status"></p></div>
 <div id="as-admin" hidden><div class="as-kpis"><article class="kpi"><b id="as-total">—</b><span>Cadastros no resultado</span></article><article class="kpi"><b>2.000+</b><span>Preparado para crescer</span></article><article class="kpi"><b id="as-pending">—</b><span>Solicitações pendentes</span></article></div><div class="as-toolbar"><label class="as-search">Buscar por nome, telefone, igreja ou cidade<input id="as-search" type="search" placeholder="Digite para buscar…"></label><button class="btn primary" id="as-new">Novo cadastro</button></div><details class="as-panel"><summary>Solicitações de acesso por e-mail</summary><div id="as-requests"></div></details></div>
 <div id="as-list" class="as-list"></div><div id="as-pagination" class="as-toolbar" hidden><button class="btn" id="as-prev">Anterior</button><span id="as-page"></span><button class="btn" id="as-next">Próxima</button></div>
@@ -84,6 +84,19 @@ async function loadDirectory(){
 }
 el('public-search').oninput=renderDirectory;el('pastors-only').onchange=renderDirectory;
 el('contact-close').onclick=()=>el('contact').close();
+function prefillClaim(){
+ const id=sessionStorage.getItem('assibrece-claim');const x=contacts.find(x=>x.id===id);if(!x)return;
+ const form=el('request-form');form.elements.name.value=x.name||'';form.elements.phone.value=x.phone||'';form.elements.church.value=x.church||'';
+}
+function startSelfEdit(id){
+ const mine=rows.find(x=>x.id===id);
+ if(mine&&(personalKey||(user&&!isAdmin))){el('contact').close();edit(id);return;}
+ if(user&&!isAdmin&&rows.length){message('Sua conta já está vinculada a outra ficha. Entre em contato com o administrador para corrigir o vínculo.',true);el('contact').close();return;}
+ sessionStorage.setItem('assibrece-claim',id);el('contact').close();
+ if(user&&!isAdmin){prefillClaim();el('request').hidden=false;el('request-form').hidden=false;el('request').scrollIntoView({behavior:'smooth'});message('Confirme os dados e solicite o vínculo. Após a aprovação única do administrador, você poderá editar sua ficha quando precisar.');return;}
+ el('login').hidden=false;const details=el('email-access');if(details)details.open=true;el('login').scrollIntoView({behavior:'smooth'});
+ message('Para editar com segurança, entre pelo seu e-mail. No primeiro acesso, o administrador confirmará que esta ficha é sua.');
+}
 function directoryClick(e){
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.group!==undefined)return openGroup(Number(b.dataset.group));
@@ -92,10 +105,11 @@ function directoryClick(e){
  if(b.dataset.memberNew&&isAdmin){el('contact').close();edit(null);el('editor-form').elements.church.value=selectedGroup.label;el('church-link').value=selectedGroup.church.id;return;}
  if(b.dataset.contactEdit)return guarded(b,()=>editContact(b.dataset.contactEdit));
  if(b.dataset.contactDelete&&isAdmin)return guarded(b,()=>deleteMember(b.dataset.contactDelete));
+ if(b.dataset.selfEdit)return startSelfEdit(b.dataset.selfEdit);
  if(!b.dataset.contact)return;
  const x=contacts.find(x=>x.id===b.dataset.contact);if(!x)return;
  let phone=String(x.phone||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
- el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(x.name||'Nome não informado')+'</h3><dl><dt>Igreja</dt><dd>'+esc(x.church||'Não informada')+'</dd><dt>Cargo</dt><dd>'+esc(x.role_description||'Não informado')+'</dd><dt>Telefone</dt><dd>'+esc(x.phone||'Não informado')+'</dd><dt>Profissão</dt><dd>'+esc(x.profession||'Não informada')+'</dd><dt>Disponível para serviços</dt><dd>'+(x.offers_services?'Sim':'Não informado')+'</dd>'+(x.service_description?'<dt>Serviços</dt><dd>'+esc(x.service_description)+'</dd>':'')+'</dl>'+(validPhone(x.phone)?'<p><a class="btn as-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'">Conversar pelo WhatsApp</a></p>':'<p>Telefone incompleto ou não informado.</p>')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-contact-edit="'+esc(x.id)+'">Editar cadastro</button><button class="btn" data-contact-delete="'+esc(x.id)+'">Excluir duplicata</button></div>':'<button class="btn" data-admin-access="1">Entrar como administrador para editar</button>');
+ el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(x.name||'Nome não informado')+'</h3><dl><dt>Igreja</dt><dd>'+esc(x.church||'Não informada')+'</dd><dt>Cargo</dt><dd>'+esc(x.role_description||'Não informado')+'</dd><dt>Telefone</dt><dd>'+esc(x.phone||'Não informado')+'</dd><dt>Profissão</dt><dd>'+esc(x.profession||'Não informada')+'</dd><dt>Disponível para serviços</dt><dd>'+(x.offers_services?'Sim':'Não informado')+'</dd>'+(x.service_description?'<dt>Serviços</dt><dd>'+esc(x.service_description)+'</dd>':'')+'</dl>'+(validPhone(x.phone)?'<p><a class="btn as-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'">Conversar pelo WhatsApp</a></p>':'<p>Telefone incompleto ou não informado.</p>')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-contact-edit="'+esc(x.id)+'">Editar cadastro</button><button class="btn" data-contact-delete="'+esc(x.id)+'">Excluir duplicata</button></div>':'<div class="as-toolbar"><button class="btn primary" data-self-edit="'+esc(x.id)+'">Este cadastro é meu — editar meus dados</button><button class="btn" data-admin-access="1">Entrar como administrador</button></div>');
  if(!el('contact').open)el('contact').showModal();
 }
 el('public-groups').onclick=directoryClick;el('contact-body').onclick=directoryClick;
@@ -119,7 +133,7 @@ async function boot(){
  user=null;isAdmin=false;el('manage').textContent='Entrar como administrador';renderDirectory();el('login').hidden=true;el('request').hidden=true;el('admin').hidden=true;el('pagination').hidden=true;el('list').innerHTML='';
  try{
   if(personalKey&&!session?.access_token&&!sessionStorage.getItem('church-admin-token')){
-   const data=await edge('read');rows=[data.member];renderCards();el('session').textContent='Meu cadastro · acesso por link pessoal';el('logout').hidden=false;message('Atualize seus dados e clique em Salvar cadastro.');return;
+   const data=await edge('read');rows=[data.member];sessionStorage.removeItem('assibrece-claim');renderCards();el('session').textContent='Meu cadastro · acesso por link pessoal';el('logout').hidden=false;message('Atualize seus dados e clique em Salvar cadastro.');return;
   }
   if(session?.access_token||sessionStorage.getItem('church-admin-token')){
    if(session?.refresh_token&&session.expires_at&&session.expires_at<Date.now()/1000+30){
@@ -135,9 +149,9 @@ async function boot(){
   if(isAdmin){personalKey='';sessionStorage.removeItem('assibrece-key');adminToken=session?.access_token||sessionStorage.getItem('church-admin-token');sessionStorage.setItem('church-admin-token',adminToken);adminUI();el('manage').textContent='Gerenciar cadastros';renderDirectory();el('admin').hidden=false;await Promise.all([loadRows(),loadRequests()]);}
   else{
    rows=(await request('/rest/v1/assibrece_members?select=*&order=number.asc')).data;
-   if(rows.length){renderCards();message('Sua ficha para edição está abaixo da lista de contatos.');}
+   if(rows.length){sessionStorage.removeItem('assibrece-claim');renderCards();message('Sua ficha está liberada. Clique em “Atualizar meus dados” sempre que precisar.');}
    else{
-    el('request').hidden=false;
+    el('request').hidden=false;prefillClaim();
     const req=(await request('/rest/v1/assibrece_requests?select=status&user_id=eq.'+user.id)).data[0];
     el('request-form').hidden=!!req;
     el('request-status').textContent=req?(req.status==='rejected'?'Solicitação não aprovada. Entre em contato com o administrador.':'Solicitação recebida. Aguarde a vinculação pelo administrador e clique em Atualizar.') :'';
@@ -167,6 +181,7 @@ async function loadRequests(){
  if(!pending.length){el('requests').innerHTML='<p>Nenhuma solicitação pendente.</p>';return;}
  const members=await allMembers();
  el('requests').innerHTML=pending.map(r=>`<article class="as-request-card"><h4>${esc(r.name)}</h4><p>${esc(r.email)} · ${esc(r.phone)} · ${esc(r.church)}</p><label>Vincular à ficha existente<select data-target="${esc(r.user_id)}"><option value="">Selecione a ficha correta</option>${members.map(m=>`<option value="${esc(m.id)}">#${esc(m.number)} · ${esc(m.name||'Sem nome')} · ${esc(m.phone)}</option>`).join('')}<option value="new">Criar um novo cadastro</option></select></label><div class="as-toolbar"><button class="btn primary" data-approve="${esc(r.user_id)}">Aprovar vínculo</button><button class="btn" data-reject="${esc(r.user_id)}">Não aprovar</button></div></article>`).join('');
+ pending.forEach(r=>{const select=el('requests').querySelector('[data-target="'+r.user_id+'"]');if(!select)return;if(r.requested_member_id&&members.some(m=>m.id===r.requested_member_id))select.value=r.requested_member_id;else{const same=members.filter(m=>personKey(m.name)===personKey(r.name));if(same.length===1)select.value=same[0].id;}});
 }
 el('church-link').onchange=()=>{const c=typeof churches==='undefined'?null:churches.find(c=>c.id===el('church-link').value);if(c)el('editor-form').elements.church.value=typeof full==='function'?full(c).name:c.name;};
 function edit(id){
@@ -195,7 +210,7 @@ el('login-form').onsubmit=e=>{e.preventDefault();guarded(e.submitter,async()=>{
 });};
 el('admin-login').onclick=()=>document.getElementById('adminLogin').click();
 el('request-form').onsubmit=e=>{e.preventDefault();guarded(e.submitter,async()=>{
- const data=Object.fromEntries(new FormData(e.target));data.email=user.email;data.user_id=user.id;
+ const data=Object.fromEntries(new FormData(e.target));data.email=user.email;data.user_id=user.id;data.requested_member_id=sessionStorage.getItem('assibrece-claim')||null;
  await request('/rest/v1/assibrece_requests',{method:'POST',body:JSON.stringify(data)});await boot();
 });};
 el('editor-form').onsubmit=async e=>{
