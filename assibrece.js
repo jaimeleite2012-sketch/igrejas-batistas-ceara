@@ -62,8 +62,11 @@ function groupStatus(g){
  g.members.forEach(x=>{absent+=missingMember(x).length;fields+=4;});
  if(!g.members.length){missing.push('Nenhum irmão vinculado');absent++;fields++;}
  const percent=fields?Math.round((fields-absent)*100/fields):0;
- const hasRepresentative=g.members.some(x=>normalize(x.name));
- return {percent,missing,color:hasRepresentative&&absent===0?'green':hasRepresentative?'yellow':'red',label:hasRepresentative&&absent===0?'Cadastro completo':hasRepresentative?'Cadastro iniciado':'Sem representante cadastrado'};
+ const hasPastor=!!normalize(c?.pastor)||g.members.some(x=>normalize(x.name)&&pastor(x));
+ const hasPerson=g.members.some(x=>normalize(x.name));
+ const hasChurchData=!!(c&&['city','address','whatsapp','region','maps','website','site','instagram','facebook','youtube','facade','extraPhoto','lat','lng'].some(k=>normalize(c[k])));
+ const hasAnyRegistration=hasPastor||hasPerson||hasChurchData;
+ return {percent,missing,color:hasPastor?'green':hasAnyRegistration?'yellow':'red',label:hasPastor?'Pastor cadastrado':hasAnyRegistration?'Cadastro iniciado':'Sem pessoas ou dados cadastrados'};
 }
 
 const phoneDigits=v=>String(v||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');
@@ -119,7 +122,7 @@ function renderDirectory(){
  const totals={green:0,yellow:0,red:0};churchGroups.forEach(g=>{g.status=groupStatus(g);totals[g.status.color]++;});
  const filtered=filteredContacts(),allowed=new Set(filtered.map(x=>x.id));
  renderChurchChoices(base);renderRecipientList(filtered);
- el('public-count').textContent=base.length+' igrejas · '+contacts.length+' irmãos · '+totals.green+' completas · '+totals.yellow+' com cadastro iniciado · '+totals.red+' sem representante · '+filtered.length+' contatos no filtro';
+ el('public-count').textContent=base.length+' igrejas · '+contacts.length+' irmãos · '+totals.green+' com pastor cadastrado · '+totals.yellow+' com cadastro iniciado · '+totals.red+' sem pessoas ou dados · '+filtered.length+' contatos no filtro';
  const selectedNames=new Set(base.filter(c=>selectedChurchIds.has(c.id)).map(c=>normalize(c.name)));
  const visibleGroups=churchGroups.map((g,i)=>({g,i})).filter(({g})=>{
   const churchSelected=!selectedChurchIds.size||selectedChurchIds.has(g.church.id)||selectedNames.has(normalize(g.label));
@@ -127,7 +130,7 @@ function renderDirectory(){
   const memberMatch=g.members.some(x=>allowed.has(x.id));
   return churchSelected&&(type==='all'?(!term||churchTerm||memberMatch):memberMatch);
  });
- el('public-groups').innerHTML='<div class="as-legend"><span class="as-green">Verde: cadastro completo</span><span class="as-yellow">Amarelo: possui representante; faltam dados</span><span class="as-red">Vermelho: sem representante cadastrado</span></div><p class="as-note">O vermelho é usado somente quando não há nenhum irmão vinculado. A profissão e a disponibilidade para serviços são informações complementares e não reduzem o status da igreja. Toque em uma caixa para consultar ou editar.</p><div class="as-heatmap">'+visibleGroups.map(({g,i})=>'<button class="as-tile as-'+g.status.color+'" data-group="'+i+'"><strong>'+esc(g.label)+'</strong><span>'+esc(g.church.city||'Cidade não informada')+'</span><b>'+g.members.length+' irmãos · '+g.status.percent+'%</b><span>'+g.status.label+'</span></button>').join('')+'</div>';
+ el('public-groups').innerHTML='<div class="as-legend"><span class="as-green">Verde: pastor cadastrado</span><span class="as-yellow">Amarelo: possui algum cadastro; falta pastor</span><span class="as-red">Vermelho: sem pessoas ou dados cadastrados</span></div><p class="as-note">Uma igreja com pastor cadastrado fica verde, mesmo que ainda não tenha outros irmãos vinculados. Havendo qualquer pessoa ou dado útil da igreja, fica amarela. O vermelho é reservado somente a igrejas sem pessoas e sem dados úteis cadastrados. Toque em uma caixa para consultar ou editar.</p><div class="as-heatmap">'+visibleGroups.map(({g,i})=>'<button class="as-tile as-'+g.status.color+'" data-group="'+i+'"><strong>'+esc(g.label)+'</strong><span>'+esc(g.church.city||'Cidade não informada')+'</span><b>'+g.members.length+' irmãos · '+g.status.percent+'%</b><span>'+g.status.label+'</span></button>').join('')+'</div>';
  if(unassigned.length){const list=unassigned.filter(x=>allowed.has(x.id));if(list.length)el('public-groups').innerHTML+='<details class="as-church"><summary>Vínculo de igreja a revisar · '+list.length+' irmãos</summary><p>Nomes abreviados ou sem correspondência única precisam ser associados à igreja correta pelo administrador.</p><div class="as-contact-grid">'+list.map(contactCard).join('')+'</div></details>';}
  const field=el('editor-form').elements.church;field.setAttribute('list','as-church-options');
  let options=el('church-options');if(!options){options=document.createElement('datalist');options.id='as-church-options';root.append(options);}const link=el('church-link'),selected=link.value;link.innerHTML='<option value="">Selecionar igreja</option>'+base.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name+' · '+(c.city||'Cidade não informada')+(c.address?' · '+c.address:''))+'</option>').join('');link.value=selected;options.innerHTML=base.map(c=>'<option value="'+esc(c.name)+'"></option>').join('');
