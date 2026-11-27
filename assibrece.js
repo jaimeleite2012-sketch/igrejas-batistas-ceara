@@ -62,9 +62,38 @@ function renderDirectory(){
  let options=el('church-options');if(!options){options=document.createElement('datalist');options.id='as-church-options';root.append(options);}const link=el('church-link'),selected=link.value;link.innerHTML='<option value="">Selecionar igreja</option>'+base.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name+' · '+(c.city||'Cidade não informada')+(c.address?' · '+c.address:''))+'</option>').join('');link.value=selected;options.innerHTML=base.map(c=>'<option value="'+esc(c.name)+'"></option>').join('');
 }
 function contactCard(x){return '<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado')+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span><span>'+esc(x.phone||'Telefone não informado')+'</span>'+(x.profession?'<span>Profissão: '+esc(x.profession)+'</span>':'')+(x.offers_services?'<small>Disponível para prestar serviços</small>':'<small>'+esc(missingMember(x).length?'Falta: '+missingMember(x).join(', '):'Cadastro completo')+'</small>')+'</button>';}
+function publicWebUrl(value){
+ if(!value)return '';
+ try{const url=new URL(String(value),location.href);return /^https?:$/.test(url.protocol)?url.href:'';}catch{return '';}
+}
+function churchProfile(church){
+ const c=church||{},address=c.address||('Região '+(c.region||'não informada')+' — endereço ainda não informado');
+ const mapUrl=typeof maps==='function'?maps(c):'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((c.name||'Igreja')+', '+address);
+ const earthUrl=typeof earth==='function'?earth(c):'https://earth.google.com/web/search/'+encodeURIComponent(address||c.name||'Ceará');
+ const photos=[c.facade,c.extraPhoto].filter(Boolean).map((src,index)=>'<img src="'+esc(src)+'" alt="'+(index?'Foto complementar de ':'Fachada de ')+esc(c.name||'igreja')+'" loading="lazy">').join('');
+ let phone=String(c.whatsapp||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
+ const social=[['Instagram',c.instagram],['Facebook',c.facebook],['YouTube',c.youtube],['Site',c.website],['Site / rede oficial',c.site]].map(([label,url])=>[label,publicWebUrl(url)]).filter(([,url],index,all)=>url&&all.findIndex(x=>x[1]===url)===index);
+ const socialHtml=social.map(([label,url])=>'<a class="as-profile-link" href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(label)+'</a>').join('')+(phone?'<a class="as-profile-link as-profile-wa" href="https://api.whatsapp.com/send?phone='+esc(phone)+'" target="_blank" rel="noopener">WhatsApp</a>':'');
+ return '<section class="as-church-profile" aria-label="Informações da igreja">'+
+  '<p class="as-profile-tag">'+esc(c.association||'AIBRECE')+' · '+esc(c.region||'Região não informada')+'</p>'+
+  '<p class="as-profile-address"><b>Endereço:</b> '+esc(address)+'</p>'+
+  (photos?'<div class="as-profile-photos">'+photos+'</div>':'<p class="as-profile-note">Foto da fachada ainda não cadastrada.</p>')+
+  '<div class="as-profile-details">'+
+   (c.pastor?'<p><b>Pastor responsável</b><span>'+esc(c.pastor)+'</span></p>':'<p><b>Pastor responsável</b><span>Não informado</span></p>')+
+   (c.whatsapp?'<p><b>Contato / WhatsApp</b><span>'+esc(c.whatsapp)+'</span></p>':'<p><b>Contato / WhatsApp</b><span>Não informado</span></p>')+
+   (c.city?'<p><b>Cidade</b><span>'+esc(c.city)+'</span></p>':'')+
+  '</div>'+
+  (socialHtml?'<div class="as-profile-links" aria-label="Links da igreja">'+socialHtml+'</div>':'')+
+  '<div class="as-profile-actions">'+
+   '<a class="btn primary" href="'+esc(mapUrl)+'" target="_blank" rel="noopener">Abrir no Google Maps</a>'+
+   '<a class="btn" href="'+esc(earthUrl)+'" target="_blank" rel="noopener">Google Earth</a>'+
+   '<a class="btn as-profile-wide" href="igreja-publicacoes.html?church='+encodeURIComponent(c.id||'')+'&name='+encodeURIComponent(c.name||'')+'">Mural, relatórios e notícias</a>'+
+  '</div>'+
+ '</section>';
+}
 function openGroup(i){
  selectedGroup=churchGroups[i];if(!selectedGroup)return;const g=selectedGroup;
- el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(g.label)+'</h3><p>'+g.status.percent+'% preenchido · '+g.status.label+'</p>'+(g.status.missing.length?'<p>Dados da igreja a completar: '+esc(g.status.missing.join(', '))+'</p>':'')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-church-edit="'+esc(g.church.id)+'">Editar igreja</button><button class="btn" data-member-new="1">Cadastrar irmão nesta igreja</button></div>':'<button class="btn" data-admin-access="1">Entrar como administrador para editar</button>')+'<div class="as-contact-grid">'+g.members.map(contactCard).join('')+'</div>'+(g.members.length?'':'<p>Ainda não há irmãos vinculados a esta igreja.</p>');
+ el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(g.label)+'</h3><p class="as-status-line">'+g.status.percent+'% preenchido · '+g.status.label+'</p>'+churchProfile(g.church)+(g.status.missing.length?'<p class="as-profile-note"><b>Dados da igreja a completar:</b> '+esc(g.status.missing.join(', '))+'</p>':'')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-church-edit="'+esc(g.church.id)+'">Editar igreja</button><button class="btn" data-member-new="1">Cadastrar irmão nesta igreja</button></div>':'<button class="btn" data-admin-access="1">Entrar como administrador para editar</button>')+'<h4 class="as-members-title">Irmãos vinculados ('+g.members.length+')</h4><div class="as-contact-grid">'+g.members.map(contactCard).join('')+'</div>'+(g.members.length?'':'<p>Ainda não há irmãos vinculados a esta igreja.</p>');
  if(!el('contact').open)el('contact').showModal();
 }
 async function editContact(id){
