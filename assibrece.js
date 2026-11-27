@@ -23,14 +23,32 @@ root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos
 <div id="as-request" class="as-panel" hidden><h3>Solicitar acesso ao meu cadastro</h3><p>Informe seus dados para o administrador localizar sua ficha. Se ainda não houver cadastro, ele poderá criar um.</p><form id="as-request-form" class="as-form"><label>Nome completo<input name="name" required minlength="2" maxlength="200" autocomplete="name"></label><label>Telefone / WhatsApp<input name="phone" required minlength="8" maxlength="40" type="tel" autocomplete="tel"></label><label>Igreja / Congregação<input name="church" maxlength="300"></label><button class="btn primary">Solicitar acesso</button></form><p id="as-request-status"></p></div>
 <div id="as-admin" hidden><div class="as-kpis"><article class="kpi"><b id="as-total">—</b><span>Cadastros no resultado</span></article><article class="kpi"><b>2.000+</b><span>Preparado para crescer</span></article><article class="kpi"><b id="as-pending">—</b><span>Solicitações pendentes</span></article></div><div class="as-toolbar"><label class="as-search">Buscar por nome, telefone, igreja ou cidade<input id="as-search" type="search" placeholder="Digite para buscar…"></label><button class="btn primary" id="as-new">Novo cadastro</button></div><details class="as-panel"><summary>Solicitações de acesso por e-mail</summary><div id="as-requests"></div></details></div>
 <div id="as-list" class="as-list"></div><div id="as-pagination" class="as-toolbar" hidden><button class="btn" id="as-prev">Anterior</button><span id="as-page"></span><button class="btn" id="as-next">Próxima</button></div>
-<dialog id="as-editor" class="as-dialog"><form id="as-editor-form" class="as-form"><h3 id="as-editor-title">Cadastro</h3><label>Vincular à igreja do cadastro geral<select id="as-church-link"><option value="">Selecionar igreja</option></select></label>${FIELD.map(([k,l,max])=>`<label>${l}${k==='notes'||k==='service_description'?`<textarea name="${k}" maxlength="${max}" rows="3"></textarea>`:`<input name="${k}" maxlength="${max}" ${k==='name'?'required':''} type="${k==='email'?'email':k==='phone'?'tel':'text'}">`}</label>`).join('')}<label class="as-check"><input id="as-offers-services" name="offers_services" type="checkbox"> Está apto e disponível para prestar esse serviço quando contratado pelos irmãos</label><p id="as-save-message" role="status"></p><div class="as-toolbar"><button type="button" class="btn" id="as-cancel">Cancelar</button><button class="btn primary" id="as-save">Salvar cadastro</button></div></form></dialog>
+<dialog id="as-editor" class="as-dialog"><form id="as-editor-form" class="as-form"><h3 id="as-editor-title">Cadastro</h3><section class="as-photo-editor"><div class="as-photo-preview-wrap"><img id="as-profile-preview" alt="Foto de perfil ou do negócio" hidden><span id="as-profile-placeholder">Sem foto</span></div><div><label>Foto de perfil ou do negócio<input id="as-profile-photo" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="as-note">A imagem será ajustada automaticamente. Use JPG, PNG ou WebP.</p><button class="btn" id="as-remove-profile-photo" type="button">Remover foto atual</button></div></section><label>Vincular à igreja do cadastro geral<select id="as-church-link"><option value="">Selecionar igreja</option></select></label>${FIELD.map(([k,l,max])=>`<label>${l}${k==='notes'||k==='service_description'?`<textarea name="${k}" maxlength="${max}" rows="3"></textarea>`:`<input name="${k}" maxlength="${max}" ${k==='name'?'required':''} type="${k==='email'?'email':k==='phone'?'tel':'text'}">`}</label>`).join('')}<label class="as-check"><input id="as-offers-services" name="offers_services" type="checkbox"> Está apto e disponível para prestar esse serviço quando contratado pelos irmãos</label><p id="as-save-message" role="status"></p><div class="as-toolbar"><button type="button" class="btn" id="as-cancel">Cancelar</button><button class="btn primary" id="as-save">Salvar cadastro</button></div></form></dialog>
 <dialog id="as-share" class="as-dialog"><h3>Link pessoal do membro</h3><p id="as-share-name"></p><p>Este link permite editar somente esta ficha e vale por 30 dias. Envie apenas ao titular, em conversa privada. Gerar outro link invalida o anterior.</p><label>Link individual<input id="as-share-url" readonly></label><div class="as-toolbar"><button class="btn" id="as-copy">Copiar link</button><a class="btn as-wa" id="as-whatsapp" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a><button class="btn" id="as-share-close">Fechar</button></div><p id="as-share-message" role="status"></p></dialog>`;
 
 const directory=document.createElement('section');
 directory.className='as-panel';
-directory.innerHTML='<h3>Contatos por igreja</h3><p>Consulta livre para todos, sem login. Toque no nome do irmão para ver o contato e abrir o WhatsApp.</p><div class="as-toolbar"><label class="as-search">Buscar irmão, igreja ou cargo<input id="as-public-search" type="search" placeholder="Nome, igreja ou pastor…"></label><label><input id="as-pastors-only" type="checkbox"> Somente pastores</label></div><p id="as-public-count" role="status"></p><div id="as-public-groups"></div><dialog id="as-contact" class="as-dialog" aria-labelledby="as-contact-title"><div id="as-contact-body"></div><button class="btn" id="as-contact-close">Fechar</button></dialog>';
+directory.innerHTML=`<h3>Contatos e mensagens da ASSIBRECE</h3>
+<p>Consulte os irmãos e use os filtros para preparar mensagens. O WhatsApp abrirá uma conversa por vez para você confirmar o envio.</p>
+<section class="as-message-center" aria-labelledby="as-message-center-title">
+ <div class="as-compose-head"><div><h4 id="as-message-center-title">Central de mensagens no WhatsApp</h4><p>Escolha o público, as igrejas e os destinatários. Somente contatos com WhatsApp válido poderão ser selecionados.</p></div><strong id="as-recipient-count">0 selecionados</strong></div>
+ <div class="as-filter-grid">
+  <label>Buscar irmão, igreja, profissão ou atividade<input id="as-public-search" type="search" placeholder="Nome, igreja, profissão, produto ou serviço…"></label>
+  <label>Tipo de contato<select id="as-contact-type"><option value="all">Todos os irmãos</option><option value="pastors">Somente pastores</option><option value="services">Prestadores de serviço</option><option value="sellers">Vendedores / produtos</option></select></label>
+  <details class="as-church-filter"><summary id="as-church-filter-summary">Todas as igrejas</summary><div class="as-church-filter-tools"><button class="btn" id="as-all-churches" type="button">Todas</button><button class="btn" id="as-clear-churches" type="button">Limpar</button></div><div id="as-church-choices" class="as-church-choices"></div></details>
+ </div>
+ <div class="as-filter-actions"><button class="btn primary" id="as-select-filtered" type="button">Selecionar contatos filtrados</button><button class="btn" id="as-clear-recipients" type="button">Limpar seleção</button><span id="as-filtered-count">0 contatos no filtro</span></div>
+ <div id="as-recipient-list" class="as-recipient-list"></div>
+ <label class="as-message-label">Mensagem<textarea id="as-campaign-message" rows="5" maxlength="4000" placeholder="Digite a mensagem geral. Você pode usar {nome} e {igreja}."></textarea></label>
+ <div class="as-filter-actions"><button class="btn primary" id="as-prepare-campaign" type="button">Preparar envios no WhatsApp</button><button class="btn" id="as-copy-campaign" type="button">Copiar mensagem</button></div>
+ <p id="as-campaign-status" class="as-note" role="status">O app não dispara mensagens automaticamente: cada conversa será aberta para sua confirmação.</p>
+ <section id="as-campaign-queue" class="as-campaign-queue" hidden><div class="as-compose-head"><div><h4>Fila de envio</h4><p id="as-queue-summary"></p></div><strong id="as-queue-progress">0%</strong></div><p id="as-queue-current"></p><div class="as-filter-actions"><button class="btn primary" id="as-open-next" type="button">Abrir próximo contato</button><button class="btn" id="as-mark-sent" type="button">Marcar como enviado</button><button class="btn" id="as-skip-contact" type="button">Pular contato</button><button class="btn" id="as-end-campaign" type="button">Encerrar fila</button></div></section>
+</section>
+<p id="as-public-count" role="status"></p><div id="as-public-groups"></div>
+<dialog id="as-contact" class="as-dialog" aria-labelledby="as-contact-title"><div id="as-contact-body"></div><button class="btn" id="as-contact-close">Fechar</button></dialog>`;
 root.querySelector('#as-message').after(directory);
-let contacts=[];
+let contacts=[],marketListings=[],selectedRecipientIds=new Set(),selectedChurchIds=new Set(),photoRemoval=false;
+const AS_CAMPAIGN_KEY='assibrece_whatsapp_queue_v1';
 const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
 const personKey=v=>normalize(v).replace(/^(pr\.?|pra\.?|pastor(?:a)?|irmao|irma)\s+/,'');
 const pastor=x=>/\b(pastor|pastora|pr|pra)\b/.test(normalize(x.role_description+' '+x.name));
@@ -47,21 +65,118 @@ function groupStatus(g){
  const hasRepresentative=g.members.some(x=>normalize(x.name));
  return {percent,missing,color:hasRepresentative&&absent===0?'green':hasRepresentative?'yellow':'red',label:hasRepresentative&&absent===0?'Cadastro completo':hasRepresentative?'Cadastro iniciado':'Sem representante cadastrado'};
 }
+
+const phoneDigits=v=>String(v||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');
+function marketFor(x){
+ const key=personKey(x.name),phone=phoneDigits(x.phone);
+ return marketListings.filter(item=>personKey(item.owner_name)===key||(phone&&phoneDigits(item.whatsapp)===phone));
+}
+function serviceProvider(x){return !!x.offers_services||marketFor(x).some(item=>normalize(item.type).includes('servico'));}
+function seller(x){return marketFor(x).some(item=>/produto|venda|comercio|loja/.test(normalize(item.type+' '+item.category)));}
+function directoryChurches(){return typeof churches==='undefined'?[]:churches.map(c=>typeof full==='function'?full(c):c);}
+function contactMatchesType(x,type){
+ if(type==='pastors')return pastor(x);
+ if(type==='services')return serviceProvider(x);
+ if(type==='sellers')return seller(x);
+ return true;
+}
+function filteredContacts(){
+ const term=normalize(el('public-search').value),type=el('contact-type').value,base=directoryChurches();
+ const selectedNames=new Set(base.filter(c=>selectedChurchIds.has(c.id)).map(c=>normalize(c.name)));
+ return contacts.filter(x=>{
+  const listings=marketFor(x);
+  const inChurch=!selectedChurchIds.size||selectedChurchIds.has(x.church_id)||selectedNames.has(normalize(x.church));
+  const haystack=normalize([x.name,x.church,x.role_description,x.phone,x.profession,x.service_description,...listings.flatMap(v=>[v.title,v.type,v.category,v.description])].join(' '));
+  return inChurch&&contactMatchesType(x,type)&&(!term||haystack.includes(term));
+ });
+}
+function renderChurchChoices(base){
+ const box=el('church-choices');if(!box)return;
+ box.innerHTML=base.map(c=>'<label><input class="as-church-choice" type="checkbox" value="'+esc(c.id)+'" '+(selectedChurchIds.has(c.id)?'checked':'')+'> <span>'+esc(c.name)+'</span><small>'+esc(c.city||c.region||'Cidade não informada')+'</small></label>').join('');
+ const count=selectedChurchIds.size;
+ el('church-filter-summary').textContent=!count?'Todas as igrejas':count+' igreja'+(count===1?'':'s')+' selecionada'+(count===1?'':'s');
+}
+function memberAvatar(x,large=false){
+ return x.profile_photo_url?'<img class="as-member-avatar '+(large?'large':'')+'" src="'+esc(x.profile_photo_url)+'" alt="Foto de '+esc(x.name||'irmão')+'" loading="lazy">':'<span class="as-member-avatar as-avatar-empty '+(large?'large':'')+'" aria-hidden="true">'+esc((x.name||'?').trim().charAt(0).toUpperCase())+'</span>';
+}
+function renderRecipientList(list){
+ const box=el('recipient-list');if(!box)return;
+ box.innerHTML=list.length?list.map(x=>{
+  const listings=marketFor(x),bad=!validPhone(x.phone),checked=selectedRecipientIds.has(x.id);
+  const badges=(pastor(x)?'<span>Pastor</span>':'')+(serviceProvider(x)?'<span>Prestador de serviço</span>':'')+(seller(x)?'<span>Vendedor / produto</span>':'');
+  return '<article class="as-recipient-card '+(bad?'invalid':'')+'"><label class="as-recipient-check"><input type="checkbox" data-recipient="'+esc(x.id)+'" '+(checked?'checked':'')+' '+(bad?'disabled':'')+'><span class="sr-only">Selecionar '+esc(x.name)+'</span></label>'+memberAvatar(x)+'<button type="button" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado')+'</strong><small>'+esc(x.church||'Igreja não informada')+'</small><small>'+esc(x.profession||x.role_description||'Atividade não informada')+'</small><span class="as-recipient-badges">'+badges+(bad?'<span>WhatsApp incompleto</span>':'')+'</span></button></article>';
+ }).join(''):'<p class="as-note">Nenhum irmão encontrado com estes filtros.</p>';
+ el('filtered-count').textContent=list.length+' contato'+(list.length===1?'':'s')+' no filtro';
+ el('recipient-count').textContent=selectedRecipientIds.size+' selecionado'+(selectedRecipientIds.size===1?'':'s');
+}
 function renderDirectory(){
- const term=normalize(el('public-search').value),only=el('pastors-only').checked;
- const base=typeof churches==='undefined'?[]:churches.map(c=>typeof full==='function'?full(c):c);
+ const term=normalize(el('public-search').value),type=el('contact-type').value;
+ const base=directoryChurches();
  churchGroups=base.map(c=>({label:c.name,church:c,members:[]}));
  const names=new Map();churchGroups.forEach(g=>{const key=normalize(g.label);if(!names.has(key))names.set(key,[]);names.get(key).push(g);});
  const unassigned=[];
  contacts.forEach(x=>{const linked=x.church_id?churchGroups.find(g=>g.church.id===x.church_id&&normalize(g.label)===normalize(x.church)):null;const matches=names.get(normalize(x.church));if(linked)linked.members.push(x);else if(matches?.length===1)matches[0].members.push(x);else unassigned.push(x);});
  const totals={green:0,yellow:0,red:0};churchGroups.forEach(g=>{g.status=groupStatus(g);totals[g.status.color]++;});
- el('public-count').textContent=base.length+' igrejas · '+contacts.length+' irmãos · '+totals.green+' completas · '+totals.yellow+' com cadastro iniciado · '+totals.red+' sem representante';
- el('public-groups').innerHTML='<div class="as-legend"><span class="as-green">Verde: cadastro completo</span><span class="as-yellow">Amarelo: possui representante; faltam dados</span><span class="as-red">Vermelho: sem representante cadastrado</span></div><p class="as-note">O vermelho é usado somente quando não há nenhum irmão vinculado. A profissão e a disponibilidade para serviços são informações complementares e não reduzem o status da igreja. Toque em uma caixa para consultar ou editar.</p><div class="as-heatmap">'+churchGroups.map((g,i)=>({g,i})).filter(({g})=>(!only||g.members.some(pastor))&&normalize(g.label+' '+(g.church.city||'')+' '+g.members.map(x=>x.name+' '+x.role_description+' '+x.phone+' '+x.profession+' '+x.service_description).join(' ')).includes(term)).map(({g,i})=>'<button class="as-tile as-'+g.status.color+'" data-group="'+i+'"><strong>'+esc(g.label)+'</strong><span>'+esc(g.church.city||'Cidade não informada')+'</span><b>'+g.members.length+' irmãos · '+g.status.percent+'%</b><span>'+g.status.label+'</span></button>').join('')+'</div>';
- if(unassigned.length){const list=unassigned.filter(x=>(!only||pastor(x))&&normalize(x.name+' '+x.church+' '+x.role_description).includes(term));el('public-groups').innerHTML+='<details class="as-church"><summary>Vínculo de igreja a revisar · '+unassigned.length+' irmãos</summary><p>Nomes abreviados ou sem correspondência única precisam ser associados à igreja correta pelo administrador.</p><div class="as-contact-grid">'+list.map(contactCard).join('')+'</div></details>';}
+ const filtered=filteredContacts(),allowed=new Set(filtered.map(x=>x.id));
+ renderChurchChoices(base);renderRecipientList(filtered);
+ el('public-count').textContent=base.length+' igrejas · '+contacts.length+' irmãos · '+totals.green+' completas · '+totals.yellow+' com cadastro iniciado · '+totals.red+' sem representante · '+filtered.length+' contatos no filtro';
+ const selectedNames=new Set(base.filter(c=>selectedChurchIds.has(c.id)).map(c=>normalize(c.name)));
+ const visibleGroups=churchGroups.map((g,i)=>({g,i})).filter(({g})=>{
+  const churchSelected=!selectedChurchIds.size||selectedChurchIds.has(g.church.id)||selectedNames.has(normalize(g.label));
+  const churchTerm=normalize(g.label+' '+(g.church.city||'')+' '+(g.church.region||'')).includes(term);
+  const memberMatch=g.members.some(x=>allowed.has(x.id));
+  return churchSelected&&(type==='all'?(!term||churchTerm||memberMatch):memberMatch);
+ });
+ el('public-groups').innerHTML='<div class="as-legend"><span class="as-green">Verde: cadastro completo</span><span class="as-yellow">Amarelo: possui representante; faltam dados</span><span class="as-red">Vermelho: sem representante cadastrado</span></div><p class="as-note">O vermelho é usado somente quando não há nenhum irmão vinculado. A profissão e a disponibilidade para serviços são informações complementares e não reduzem o status da igreja. Toque em uma caixa para consultar ou editar.</p><div class="as-heatmap">'+visibleGroups.map(({g,i})=>'<button class="as-tile as-'+g.status.color+'" data-group="'+i+'"><strong>'+esc(g.label)+'</strong><span>'+esc(g.church.city||'Cidade não informada')+'</span><b>'+g.members.length+' irmãos · '+g.status.percent+'%</b><span>'+g.status.label+'</span></button>').join('')+'</div>';
+ if(unassigned.length){const list=unassigned.filter(x=>allowed.has(x.id));if(list.length)el('public-groups').innerHTML+='<details class="as-church"><summary>Vínculo de igreja a revisar · '+list.length+' irmãos</summary><p>Nomes abreviados ou sem correspondência única precisam ser associados à igreja correta pelo administrador.</p><div class="as-contact-grid">'+list.map(contactCard).join('')+'</div></details>';}
  const field=el('editor-form').elements.church;field.setAttribute('list','as-church-options');
  let options=el('church-options');if(!options){options=document.createElement('datalist');options.id='as-church-options';root.append(options);}const link=el('church-link'),selected=link.value;link.innerHTML='<option value="">Selecionar igreja</option>'+base.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name+' · '+(c.city||'Cidade não informada')+(c.address?' · '+c.address:''))+'</option>').join('');link.value=selected;options.innerHTML=base.map(c=>'<option value="'+esc(c.name)+'"></option>').join('');
+ campaignRender();
 }
-function contactCard(x){return '<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'"><strong>'+esc(x.name||'Nome não informado')+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span><span>'+esc(x.phone||'Telefone não informado')+'</span>'+(x.profession?'<span>Profissão: '+esc(x.profession)+'</span>':'')+(x.offers_services?'<small>Disponível para prestar serviços</small>':'<small>'+esc(missingMember(x).length?'Falta: '+missingMember(x).join(', '):'Cadastro completo')+'</small>')+'</button>';}
+function contactCard(x){
+ return '<button type="button" class="as-contact-card" data-contact="'+esc(x.id)+'">'+memberAvatar(x)+'<strong>'+esc(x.name||'Nome não informado')+'</strong><span>'+esc(x.role_description||'Cargo não informado')+'</span><span>'+esc(x.phone||'Telefone não informado')+'</span>'+(x.profession?'<span>Profissão: '+esc(x.profession)+'</span>':'')+(serviceProvider(x)?'<small>Disponível para prestar serviços</small>':seller(x)?'<small>Vendedor / produto cadastrado</small>':'<small>'+esc(missingMember(x).length?'Falta: '+missingMember(x).join(', '):'Cadastro completo')+'</small>')+'</button>';
+}
+
+function campaignLoad(){try{return JSON.parse(localStorage.getItem(AS_CAMPAIGN_KEY)||'null');}catch{return null;}}
+function campaignSave(queue){if(queue)localStorage.setItem(AS_CAMPAIGN_KEY,JSON.stringify(queue));else localStorage.removeItem(AS_CAMPAIGN_KEY);}
+function campaignMessageFor(message,item){
+ return message.replace(/\{nome\}/gi,item.name||'irmão').replace(/\{igreja\}/gi,item.church||'sua igreja');
+}
+function campaignRender(){
+ const queue=campaignLoad(),panel=el('campaign-queue');if(!panel)return;
+ if(!queue?.items?.length){panel.hidden=true;return;}
+ panel.hidden=false;
+ const sent=queue.items.filter(x=>x.status==='sent').length,skipped=queue.items.filter(x=>x.status==='skipped').length,total=queue.items.length,done=sent+skipped;
+ const current=queue.items.find(x=>x.status==='opened')||queue.items.find(x=>x.status==='pending');
+ el('queue-summary').textContent=done+' de '+total+' processados · '+sent+' enviados · '+skipped+' pulados';
+ el('queue-progress').textContent=Math.round(done/total*100)+'%';
+ el('queue-current').textContent=current?'Contato atual: '+current.name+' · '+current.church:'Fila concluída.';
+ el('open-next').disabled=!current;el('mark-sent').disabled=!current;el('skip-contact').disabled=!current;
+}
+function prepareCampaign(){
+ const messageText=el('campaign-message').value.trim();
+ if(!messageText){el('campaign-status').textContent='Escreva a mensagem antes de preparar os envios.';return;}
+ const seen=new Set(),items=contacts.filter(x=>selectedRecipientIds.has(x.id)&&validPhone(x.phone)).map(x=>{
+  let phone=String(x.phone||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
+  return {id:x.id,name:x.name||'Irmão',church:x.church||'',phone,status:'pending'};
+ }).filter(x=>x.phone&&!seen.has(x.phone)&&seen.add(x.phone));
+ if(!items.length){el('campaign-status').textContent='Selecione pelo menos um contato com WhatsApp válido.';return;}
+ campaignSave({message:messageText,created_at:new Date().toISOString(),items});
+ el('campaign-status').textContent='Fila preparada com '+items.length+' contato'+(items.length===1?'':'s')+'. Abra uma conversa por vez.';
+ campaignRender();
+}
+function openNextCampaign(){
+ const queue=campaignLoad();if(!queue)return;
+ let item=queue.items.find(x=>x.status==='opened')||queue.items.find(x=>x.status==='pending');if(!item)return;
+ item.status='opened';item.opened_at=new Date().toISOString();campaignSave(queue);campaignRender();
+ const messageText=campaignMessageFor(queue.message,item);
+ window.open('https://api.whatsapp.com/send?phone='+item.phone+'&text='+encodeURIComponent(messageText),'_blank','noopener');
+}
+function markCampaign(status){
+ const queue=campaignLoad();if(!queue)return;
+ const item=queue.items.find(x=>x.status==='opened')||queue.items.find(x=>x.status==='pending');if(!item)return;
+ item.status=status;item.updated_at=new Date().toISOString();campaignSave(queue);campaignRender();
+}
 function publicWebUrl(value){
  if(!value)return '';
  try{const url=new URL(String(value),location.href);return /^https?:$/.test(url.protocol)?url.href:'';}catch{return '';}
@@ -104,15 +219,27 @@ async function editContact(id){
 }
 async function loadDirectory(){
  try{
- let all=[];
- for(let offset=0;;offset+=500){
- const res=await fetch(BASE+'/rest/v1/assibrece_directory?select=id,number,name,phone,role_description,church,church_id,profession,offers_services,service_description&order=number.asc&limit=500&offset='+offset,{headers:{apikey:KEY},cache:'no-store'});
- if(!res.ok)throw new Error();const batch=await res.json();all.push(...batch);if(batch.length<500)break;
- }
- contacts=all;renderDirectory();
+  const listingPromise=fetch(BASE+'/rest/v1/brother_services?select=owner_name,title,type,category,description,whatsapp,status&status=eq.approved&order=owner_name.asc&limit=1000',{headers:{apikey:KEY},cache:'no-store'}).then(r=>r.ok?r.json():[]).catch(()=>[]);
+  let all=[];
+  for(let offset=0;;offset+=500){
+   const res=await fetch(BASE+'/rest/v1/assibrece_directory?select=id,number,name,phone,role_description,church,church_id,profession,offers_services,service_description,profile_photo_url&order=number.asc&limit=500&offset='+offset,{headers:{apikey:KEY},cache:'no-store'});
+   if(!res.ok)throw new Error();const batch=await res.json();all.push(...batch);if(batch.length<500)break;
+  }
+  contacts=all;marketListings=await listingPromise;renderDirectory();
  }catch{el('public-count').textContent='Não foi possível carregar os contatos. Clique em Atualizar para tentar novamente.';}
 }
-el('public-search').oninput=renderDirectory;el('pastors-only').onchange=renderDirectory;
+el('public-search').oninput=renderDirectory;el('contact-type').onchange=renderDirectory;
+el('church-choices').onchange=e=>{const input=e.target.closest('.as-church-choice');if(!input)return;if(input.checked)selectedChurchIds.add(input.value);else selectedChurchIds.delete(input.value);renderDirectory();};
+el('all-churches').onclick=()=>{selectedChurchIds=new Set(directoryChurches().map(c=>c.id));renderDirectory();};
+el('clear-churches').onclick=()=>{selectedChurchIds.clear();renderDirectory();};
+el('select-filtered').onclick=()=>{filteredContacts().filter(x=>validPhone(x.phone)).forEach(x=>selectedRecipientIds.add(x.id));renderRecipientList(filteredContacts());};
+el('clear-recipients').onclick=()=>{selectedRecipientIds.clear();renderRecipientList(filteredContacts());};
+el('recipient-list').onchange=e=>{const input=e.target.closest('[data-recipient]');if(!input)return;if(input.checked)selectedRecipientIds.add(input.dataset.recipient);else selectedRecipientIds.delete(input.dataset.recipient);renderRecipientList(filteredContacts());};
+el('recipient-list').onclick=directoryClick;
+el('prepare-campaign').onclick=prepareCampaign;
+el('copy-campaign').onclick=async()=>{const text=el('campaign-message').value.trim();if(!text){el('campaign-status').textContent='Escreva a mensagem antes de copiar.';return;}try{await navigator.clipboard.writeText(text);el('campaign-status').textContent='Mensagem copiada.';}catch{el('campaign-message').select();el('campaign-status').textContent='Selecione e copie a mensagem.';}};
+el('open-next').onclick=openNextCampaign;el('mark-sent').onclick=()=>markCampaign('sent');el('skip-contact').onclick=()=>markCampaign('skipped');
+el('end-campaign').onclick=()=>{if(confirm('Encerrar e apagar esta fila de envio neste aparelho?')){campaignSave(null);campaignRender();el('campaign-status').textContent='Fila encerrada.';}};
 el('contact-close').onclick=()=>el('contact').close();
 function prefillClaim(){
  const id=sessionStorage.getItem('assibrece-claim');const x=contacts.find(x=>x.id===id);if(!x)return;
@@ -139,7 +266,8 @@ function directoryClick(e){
  if(!b.dataset.contact)return;
  const x=contacts.find(x=>x.id===b.dataset.contact);if(!x)return;
  let phone=String(x.phone||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
- el('contact-body').innerHTML='<h3 id="as-contact-title">'+esc(x.name||'Nome não informado')+'</h3><dl><dt>Igreja</dt><dd>'+esc(x.church||'Não informada')+'</dd><dt>Cargo</dt><dd>'+esc(x.role_description||'Não informado')+'</dd><dt>Telefone</dt><dd>'+esc(x.phone||'Não informado')+'</dd><dt>Profissão</dt><dd>'+esc(x.profession||'Não informada')+'</dd><dt>Disponível para serviços</dt><dd>'+(x.offers_services?'Sim':'Não informado')+'</dd>'+(x.service_description?'<dt>Serviços</dt><dd>'+esc(x.service_description)+'</dd>':'')+'</dl>'+(validPhone(x.phone)?'<p><a class="btn as-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'">Conversar pelo WhatsApp</a></p>':'<p>Telefone incompleto ou não informado.</p>')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-contact-edit="'+esc(x.id)+'">Editar cadastro</button><button class="btn" data-contact-delete="'+esc(x.id)+'">Excluir duplicata</button></div>':'<div class="as-toolbar"><button class="btn primary" data-self-edit="'+esc(x.id)+'">Este cadastro é meu — editar meus dados</button><button class="btn" data-admin-access="1">Entrar como administrador</button></div>');
+ const listings=marketFor(x),business=listings.map(item=>item.title+(item.type?' · '+item.type:'')).join(' | ');
+ el('contact-body').innerHTML='<div class="as-member-profile-head">'+memberAvatar(x,true)+'<div><h3 id="as-contact-title">'+esc(x.name||'Nome não informado')+'</h3><p>'+esc(x.role_description||'Cargo não informado')+'</p></div></div><dl><dt>Igreja</dt><dd>'+esc(x.church||'Não informada')+'</dd><dt>Cargo</dt><dd>'+esc(x.role_description||'Não informado')+'</dd><dt>Telefone</dt><dd>'+esc(x.phone||'Não informado')+'</dd><dt>Profissão</dt><dd>'+esc(x.profession||'Não informada')+'</dd><dt>Disponível para serviços</dt><dd>'+(serviceProvider(x)?'Sim':'Não informado')+'</dd>'+(x.service_description?'<dt>Serviços</dt><dd>'+esc(x.service_description)+'</dd>':'')+(business?'<dt>Produtos / atividades cadastradas</dt><dd>'+esc(business)+'</dd>':'')+'</dl>'+(validPhone(x.phone)?'<p><a class="btn as-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'">Conversar pelo WhatsApp</a></p>':'<p>Telefone incompleto ou não informado.</p>')+(isAdmin?'<div class="as-toolbar"><button class="btn primary" data-contact-edit="'+esc(x.id)+'">Editar cadastro</button><button class="btn" data-contact-delete="'+esc(x.id)+'">Excluir duplicata</button></div>':'<div class="as-toolbar"><button class="btn primary" data-self-edit="'+esc(x.id)+'">Este cadastro é meu — editar meus dados</button><button class="btn" data-admin-access="1">Entrar como administrador</button></div>');
  if(!el('contact').open)el('contact').showModal();
 }
 el('public-groups').onclick=directoryClick;el('contact-body').onclick=directoryClick;
@@ -202,7 +330,7 @@ async function loadRows(){
  message('Dados online · 25 cadastros por página.');
 }
 function renderCards(){
- el('list').innerHTML=rows.length?rows.map(x=>`<article class="as-panel"><div class="as-card-head"><span class="tag">Cadastro ${esc(x.number)}</span><h3>${esc(x.name||'Nome a completar')}</h3></div><dl>${FIELD.filter(([k])=>k!=='name').map(([k,l])=>`<div><dt>${l}</dt><dd>${esc(x[k]||'Não informado')}</dd></div>`).join('')}<div><dt>Disponível para prestar serviços</dt><dd>${x.offers_services?'Sim':'Não'}</dd></div></dl><div class="as-toolbar"><button class="btn primary" data-edit="${esc(x.id)}">${isAdmin?'Editar cadastro':'Atualizar meus dados'}</button>${isAdmin?`<button class="btn as-wa" data-link="${esc(x.id)}">Link pessoal / WhatsApp</button><button class="btn" data-revoke="${esc(x.id)}">Revogar link</button><button class="btn" data-delete="${esc(x.id)}">Excluir duplicata</button>`:''}</div><p class="as-note">Última atualização: ${esc(new Date(x.updated_at).toLocaleString('pt-BR'))}</p></article>`).join(''):'<p class="as-panel">Nenhum cadastro encontrado.</p>';
+ el('list').innerHTML=rows.length?rows.map(x=>`<article class="as-panel as-member-admin-card"><div class="as-card-head">${memberAvatar(x)}<span class="tag">Cadastro ${esc(x.number)}</span><h3>${esc(x.name||'Nome a completar')}</h3></div><dl>${FIELD.filter(([k])=>k!=='name').map(([k,l])=>`<div><dt>${l}</dt><dd>${esc(x[k]||'Não informado')}</dd></div>`).join('')}<div><dt>Disponível para prestar serviços</dt><dd>${x.offers_services?'Sim':'Não'}</dd></div></dl><div class="as-toolbar"><button class="btn primary" data-edit="${esc(x.id)}">${isAdmin?'Editar cadastro':'Atualizar meus dados'}</button>${isAdmin?`<button class="btn as-wa" data-link="${esc(x.id)}">Link pessoal / WhatsApp</button><button class="btn" data-revoke="${esc(x.id)}">Revogar link</button><button class="btn" data-delete="${esc(x.id)}">Excluir duplicata</button>`:''}</div><p class="as-note">Última atualização: ${esc(new Date(x.updated_at).toLocaleString('pt-BR'))}</p></article>`).join(''):'<p class="as-panel">Nenhum cadastro encontrado.</p>';
 }
 async function allMembers(){let a=[];for(let offset=0;;offset+=500){const batch=(await request('/rest/v1/assibrece_members?select=id,number,name,phone&order=number.asc&limit=500&offset='+offset)).data;a.push(...batch);if(batch.length<500)return a;}}
 async function loadRequests(){
@@ -214,12 +342,66 @@ async function loadRequests(){
  pending.forEach(r=>{const select=el('requests').querySelector('[data-target="'+r.user_id+'"]');if(!select)return;if(r.requested_member_id&&members.some(m=>m.id===r.requested_member_id))select.value=r.requested_member_id;else{const same=members.filter(m=>personKey(m.name)===personKey(r.name));if(same.length===1)select.value=same[0].id;}});
 }
 el('church-link').onchange=()=>{const c=typeof churches==='undefined'?null:churches.find(c=>c.id===el('church-link').value);if(c)el('editor-form').elements.church.value=typeof full==='function'?full(c).name:c.name;};
+let photoPreviewUrl='';
+function showProfilePreview(url){
+ const img=el('profile-preview'),placeholder=el('profile-placeholder');
+ if(url){img.src=url;img.hidden=false;placeholder.hidden=true;}else{img.removeAttribute('src');img.hidden=true;placeholder.hidden=false;}
+}
 function edit(id){
  editing=id?rows.find(x=>x.id===id):null;
  el('editor-title').textContent=editing?'Cadastro #'+editing.number:'Novo cadastro';
  FIELD.forEach(([k])=>el('editor-form').elements[k].value=editing?.[k]||'');
  el('offers-services').checked=!!editing?.offers_services;
- el('church-link').value=editing?.church_id||'';el('save-message').textContent='';el('editor').showModal();
+ el('church-link').value=editing?.church_id||'';el('save-message').textContent='';
+ el('profile-photo').value='';photoRemoval=false;showProfilePreview(editing?.profile_photo_url||'');
+ el('remove-profile-photo').hidden=!editing?.profile_photo_url;
+ el('editor').showModal();
+}
+el('profile-photo').onchange=()=>{
+ const file=el('profile-photo').files?.[0];if(!file)return;
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)){el('save-message').textContent='Use uma foto JPG, PNG ou WebP.';el('profile-photo').value='';return;}
+ if(file.size>8*1024*1024){el('save-message').textContent='Escolha uma imagem de até 8 MB.';el('profile-photo').value='';return;}
+ if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl=URL.createObjectURL(file);showProfilePreview(photoPreviewUrl);photoRemoval=false;el('remove-profile-photo').hidden=false;
+};
+el('remove-profile-photo').onclick=()=>{el('profile-photo').value='';photoRemoval=true;showProfilePreview('');el('remove-profile-photo').hidden=true;};
+function compressProfilePhoto(file){
+ return new Promise((resolve,reject)=>{
+  const url=URL.createObjectURL(file),image=new Image();
+  image.onload=()=>{
+   try{
+    const max=900,scale=Math.min(1,max/image.width,max/image.height),canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
+    canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+    canvas.toBlob(blob=>{URL.revokeObjectURL(url);blob?resolve(blob):reject(new Error('Não foi possível preparar a foto.'));},'image/webp',0.82);
+   }catch(error){URL.revokeObjectURL(url);reject(error);}
+  };
+  image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Não foi possível abrir a foto.'));};image.src=url;
+ });
+}
+function blobBase64(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');reader.onerror=()=>reject(new Error('Não foi possível ler a foto.'));reader.readAsDataURL(blob);});}
+async function deleteStoredProfile(url){
+ const prefix=BASE+'/storage/v1/object/public/assibrece-profiles/';if(!url?.startsWith(prefix))return;
+ const path=url.slice(prefix.length);
+ await fetch(BASE+'/storage/v1/object/assibrece-profiles/'+path,{method:'DELETE',headers:authHeaders()}).catch(()=>{});
+}
+async function uploadProfilePhoto(member,file){
+ const blob=await compressProfilePhoto(file);
+ if(blob.size>1572864)throw new Error('A foto ficou muito grande. Escolha outra imagem.');
+ if(personalKey){const file64=await blobBase64(blob);return (await edge('upload_photo',{file:file64,mime:blob.type||'image/webp'})).member;}
+ const path=member.id+'/profile-'+Date.now()+'.webp',token=session?.access_token||sessionStorage.getItem('church-admin-token');
+ const upload=await fetch(BASE+'/storage/v1/object/assibrece-profiles/'+path,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':blob.type||'image/webp','x-upsert':'false'},body:blob});
+ if(!upload.ok)throw new Error('Não foi possível enviar a foto. Entre novamente e tente outra vez.');
+ const url=BASE+'/storage/v1/object/public/assibrece-profiles/'+path;
+ const result=await request('/rest/v1/assibrece_members?id=eq.'+encodeURIComponent(member.id)+'&revision=eq.'+member.revision,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({profile_photo_url:url})});
+ if(!result.data?.length)throw new Error('O cadastro mudou durante o envio da foto. Atualize e tente novamente.');
+ await deleteStoredProfile(member.profile_photo_url||'');return result.data[0];
+}
+async function removeProfilePhoto(member){
+ if(!member.profile_photo_url)return member;
+ if(personalKey)return (await edge('remove_photo')).member;
+ const result=await request('/rest/v1/assibrece_members?id=eq.'+encodeURIComponent(member.id)+'&revision=eq.'+member.revision,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({profile_photo_url:''})});
+ if(!result.data?.length)throw new Error('O cadastro mudou durante a remoção da foto.');
+ await deleteStoredProfile(member.profile_photo_url);return result.data[0];
 }
 async function deleteMember(id){
  const member=rows.find(x=>x.id===id)||contacts.find(x=>x.id===id);
@@ -252,13 +434,23 @@ el('editor-form').onsubmit=async e=>{
   if(!editing){const same=contacts.find(x=>personKey(x.name)===personKey(data.name));if(same)throw new Error('Já existe um cadastro com este nome: '+same.name+'. Abra a ficha existente para editar ou excluir a duplicata.');}
   const selected=churchGroups.find(g=>g.church.id===el('church-link').value&&normalize(g.label)===normalize(data.church));const matches=churchGroups.filter(g=>normalize(g.label)===normalize(data.church));data.church_id=selected?.church.id||(matches.length===1?matches[0].church.id:null);
   if(matches.length>1&&!data.church_id)throw new Error('Há igrejas com o mesmo nome. Selecione a igreja e a cidade no campo de vínculo.');
-  if(personalKey){const saved=await edge('update',{data,revision:editing.revision});rows=[saved.member];renderCards();}
-  else if(editing){
+  let saved;
+  if(personalKey){
+   saved=(await edge('update',{data,revision:editing.revision})).member;
+  }else if(editing){
    const result=await request('/rest/v1/assibrece_members?id=eq.'+editing.id+'&revision=eq.'+editing.revision,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(data)});
    if(!result.data?.length)throw new Error('A ficha mudou em outra sessão ou seu acesso expirou. Feche e atualize antes de salvar.');
-   if(isAdmin)await loadRows();else{rows=result.data;renderCards();}
-  }else{await request('/rest/v1/assibrece_members',{method:'POST',body:JSON.stringify(data)});page=0;await loadRows();}
-  await loadDirectory();el('editor').close();message('Cadastro salvo no banco online com sucesso.');
+   saved=result.data[0];
+  }else{
+   const result=await request('/rest/v1/assibrece_members',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(data)});
+   if(!result.data?.length)throw new Error('Não foi possível criar o cadastro.');
+   saved=result.data[0];
+  }
+  const photoFile=el('profile-photo').files?.[0];
+  if(photoFile){el('save-message').textContent='Enviando e ajustando a foto…';saved=await uploadProfilePhoto(saved,photoFile);}
+  else if(photoRemoval){saved=await removeProfilePhoto(saved);}
+  if(isAdmin)await loadRows();else{rows=[saved];renderCards();}
+  await loadDirectory();el('editor').close();message('Cadastro e foto salvos no banco online com sucesso.');
  }catch(error){el('save-message').textContent=error.message;}finally{el('save').disabled=false;}
 };
 el('list').onclick=e=>{
