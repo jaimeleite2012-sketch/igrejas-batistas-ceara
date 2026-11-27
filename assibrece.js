@@ -9,7 +9,8 @@ const FIELD=[['name','Nome completo',200],['phone','Telefone / WhatsApp',40],['r
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const el=id=>document.getElementById('as-'+id);
 let session=null,user=null,isAdmin=false,personalKey=sessionStorage.getItem('assibrece-key')||'',rows=[],page=0,total=0,filter='',editing=null,sequence=0;
-try{session=JSON.parse(sessionStorage.getItem('assibrece-auth')||'null');}catch{}
+if(!localStorage.getItem('assibrece-auth')&&sessionStorage.getItem('assibrece-auth'))localStorage.setItem('assibrece-auth',sessionStorage.getItem('assibrece-auth'));
+try{session=JSON.parse(localStorage.getItem('assibrece-auth')||'null');}catch{}
 const hash=new URLSearchParams(location.hash.slice(1));
 if(hash.has('assibrece_key')){
  personalKey=hash.get('assibrece_key');sessionStorage.setItem('assibrece-key',personalKey);
@@ -18,7 +19,7 @@ if(hash.has('assibrece_key')){
 root.innerHTML=`<div class="dash-hero"><h2>ASSIBRECE</h2><p>Cadastro dos irmãos · Comunhão e cooperação</p></div>
 <div class="as-toolbar"><button class="btn primary" id="as-manage">Entrar como administrador</button><span id="as-session">Consulta pública · edição protegida</span><button class="btn" id="as-refresh">Atualizar</button><button class="btn" id="as-logout" hidden>Sair</button></div>
 <p id="as-message" class="as-message" role="status" aria-live="polite"></p>
-<div id="as-login" class="as-panel" hidden><h3>Acesse e atualize seu cadastro</h3><p>Cada irmão pode editar somente a própria ficha. Entre com seu e-mail ou use o link pessoal recebido pelo WhatsApp.</p><details id="as-email-access"><summary>Entrar pelo e-mail para editar meus dados</summary><form id="as-login-form" class="as-form"><label>E-mail de acesso<input name="email" type="email" autocomplete="email" required maxlength="254"></label><button class="btn primary">Receber link por e-mail</button></form><p>No primeiro acesso por e-mail, o administrador precisa vincular sua conta à ficha correta.</p></details><button class="btn" id="as-admin-login">Entrar como administrador</button></div>
+<div id="as-login" class="as-panel" hidden><h3>Acesse e atualize seu cadastro</h3><p>Cada irmão pode editar somente a própria ficha. Entre com seu e-mail ou use o link pessoal recebido pelo WhatsApp.</p><details id="as-email-access"><summary>Entrar pelo e-mail para editar meus dados</summary><form id="as-login-form" class="as-form"><label>E-mail de acesso<input name="email" type="email" autocomplete="email" required maxlength="254"></label><button class="btn primary">Receber link por e-mail</button></form><p>No primeiro acesso por e-mail, o administrador precisa vincular sua conta à ficha correta.</p><p><b>Depois de entrar, você continuará conectado neste aparelho até clicar em Sair.</b></p></details><button class="btn" id="as-admin-login">Entrar como administrador</button></div>
 <div id="as-request" class="as-panel" hidden><h3>Solicitar acesso ao meu cadastro</h3><p>Informe seus dados para o administrador localizar sua ficha. Se ainda não houver cadastro, ele poderá criar um.</p><form id="as-request-form" class="as-form"><label>Nome completo<input name="name" required minlength="2" maxlength="200" autocomplete="name"></label><label>Telefone / WhatsApp<input name="phone" required minlength="8" maxlength="40" type="tel" autocomplete="tel"></label><label>Igreja / Congregação<input name="church" maxlength="300"></label><button class="btn primary">Solicitar acesso</button></form><p id="as-request-status"></p></div>
 <div id="as-admin" hidden><div class="as-kpis"><article class="kpi"><b id="as-total">—</b><span>Cadastros no resultado</span></article><article class="kpi"><b>2.000+</b><span>Preparado para crescer</span></article><article class="kpi"><b id="as-pending">—</b><span>Solicitações pendentes</span></article></div><div class="as-toolbar"><label class="as-search">Buscar por nome, telefone, igreja ou cidade<input id="as-search" type="search" placeholder="Digite para buscar…"></label><button class="btn primary" id="as-new">Novo cadastro</button></div><details class="as-panel"><summary>Solicitações de acesso por e-mail</summary><div id="as-requests"></div></details></div>
 <div id="as-list" class="as-list"></div><div id="as-pagination" class="as-toolbar" hidden><button class="btn" id="as-prev">Anterior</button><span id="as-page"></span><button class="btn" id="as-next">Próxima</button></div>
@@ -129,7 +130,7 @@ async function edge(action,extra={}){return (await request('/functions/v1/assibr
 async function boot(){
  loadDirectory();
  await window.directoryAuthReady;
- try{session=JSON.parse(sessionStorage.getItem('assibrece-auth')||'null');}catch{session=null;}
+ try{session=JSON.parse(localStorage.getItem('assibrece-auth')||'null');}catch{session=null;}
  user=null;isAdmin=false;el('manage').textContent='Entrar como administrador';renderDirectory();el('login').hidden=true;el('request').hidden=true;el('admin').hidden=true;el('pagination').hidden=true;el('list').innerHTML='';
  try{
   if(personalKey&&!session?.access_token&&!sessionStorage.getItem('church-admin-token')){
@@ -138,7 +139,7 @@ async function boot(){
   if(session?.access_token||sessionStorage.getItem('church-admin-token')){
    if(session?.refresh_token&&session.expires_at&&session.expires_at<Date.now()/1000+30){
     const {data}=await request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:session.refresh_token})});
-    session={...data,expires_at:Date.now()/1000+data.expires_in};sessionStorage.setItem('assibrece-auth',JSON.stringify(session));
+    session={...data,expires_at:Date.now()/1000+data.expires_in};localStorage.setItem('assibrece-auth',JSON.stringify(session));
    }
    user=(await request('/auth/v1/user')).data;
    isAdmin=(await request('/rest/v1/directory_admins?select=user_id&user_id=eq.'+encodeURIComponent(user.id))).data.length>0;
@@ -267,7 +268,7 @@ el('next').onclick=()=>{page++;guarded(el('next'),loadRows);};
 let debounce;el('search').oninput=e=>{clearTimeout(debounce);filter=e.target.value;page=0;debounce=setTimeout(()=>guarded(null,loadRows),300);};
 el('logout').onclick=()=>guarded(el('logout'),async()=>{
  if(session?.access_token)await request('/auth/v1/logout',{method:'POST'}).catch(()=>{});
- sessionStorage.removeItem('assibrece-auth');sessionStorage.removeItem('assibrece-key');sessionStorage.removeItem('church-admin-token');session=null;personalKey='';adminToken='';adminUI();await boot();
+ localStorage.removeItem('assibrece-auth');sessionStorage.removeItem('assibrece-key');sessionStorage.removeItem('church-admin-token');session=null;personalKey='';adminToken='';adminUI();await boot();
 });
 window.addEventListener('assibrece-session',boot);
 boot();
